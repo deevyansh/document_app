@@ -103,12 +103,8 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _canResendOtp = false;
 
   bool _isSelectedMode=false;
-  List<int> _selectedIndexes= []
-
-
-
-
-
+  Set<int> _selectedIndexes= {};
+  final ScrollController _gridController = ScrollController();
 
   void _showError(String message) {
   if (!mounted) return;
@@ -1020,144 +1016,272 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildDocument(BuildContext context) {
-    return 
-    Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: _profileimage == null
-              ? const Icon(Icons.person)
-              : CircleAvatar(
-                  radius: 16,
-                  backgroundImage: FileImage(_profileimage!),
-                ),
-          tooltip: 'Your Profile',
-          onPressed: () async {
-            final email = await storage.read(key: "email") ?? "";
-            final action = await Navigator.push<ProfilePageAction>(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ProfilePage(
-                  userEmail: email,
-                ),
-              ),
-            );
-
-            await _loadProfileImage();
-
-            if (action == ProfilePageAction.deleteaccount) {
-              await _deleteaccount();
-            } else if (action == ProfilePageAction.logout) {
-              await _logout();
-            }
-          },
-        ),
-        title: const Text('My Documents'),
-      ),
-
-      body: SafeArea(
-        child: _photos.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.folder_open, size: 80, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'No documents yet',
-                    style: TextStyle(fontSize: 18),
+    if(!_isSelectedMode){
+      return 
+      Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: _profileimage == null
+                ? const Icon(Icons.person)
+                : CircleAvatar(
+                    radius: 16,
+                    backgroundImage: FileImage(_profileimage!),
                   ),
-                  Text('Tap Scan or Gallery below to add your first document'),
-                ],
-              ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: GridView.builder(
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: 0.75,
+            tooltip: 'Your Profile',
+            onPressed: () async {
+              final email = await storage.read(key: "email") ?? "";
+              final action = await Navigator.push<ProfilePageAction>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProfilePage(
+                    userEmail: email,
+                  ),
                 ),
-                itemCount: _photos.length,
-                itemBuilder: (context, i) {
-                  final file = _photos[i];
-                  final isPdf = file.path.endsWith('.pdf');
+              );
 
-                  return GestureDetector(
-                    onTap: () async {
-                      final deleted = await Navigator.push<bool>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => FullScreenImage(
-                            files: _photos,
-                            startIndex: i,
+              await _loadProfileImage();
+
+              if (action == ProfilePageAction.deleteaccount) {
+                await _deleteaccount();
+              } else if (action == ProfilePageAction.logout) {
+                await _logout();
+              }
+            },
+          ),
+          title: const Text('My Documents'),
+        ),
+
+        body: SafeArea(
+          child: _photos.isEmpty
+            ? const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.folder_open, size: 80, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'No documents yet',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    Text('Tap Scan or Gallery below to add your first document'),
+                  ],
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: GridView.builder(
+                  controller: _gridController,
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 0.75,
+                  ),
+                  itemCount: _photos.length,
+                  itemBuilder: (context, i) {
+                    final file = _photos[i];
+                    final isPdf = file.path.endsWith('.pdf');
+
+                    return GestureDetector(
+                      onTap: () async {
+                        final deleted = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FullScreenImage(
+                              files: _photos,
+                              startIndex: i,
+                            ),
+                          ),
+                        );
+
+                        if (deleted == true) {
+                          await _load();
+                        }
+                      },
+                      onLongPress:() async {
+                        setState((){
+                          _isSelectedMode=true;
+                          _selectedIndexes.add(i);
+                        });
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: isPdf
+                            ? Image.file(
+                                File('${file.path}.thumb.jpg'),
+                                fit: BoxFit.cover,
+                                cacheWidth: 500,
+                              )
+                            : Image.file(
+                                file,
+                                fit: BoxFit.cover,
+                                cacheWidth: 500,
+                              ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+        ),
+
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Container(
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 1,
+                  offset: const Offset(0, -1),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _bottomButton(
+                  icon: Icons.photo_library,
+                  label: "Gallery",
+                  onTap: _pickFromGallery,
+                ),
+                _bottomButton(
+                  icon: Icons.camera_alt,
+                  label: "Scan",
+                  onTap: _scanDocument,
+                ),
+                _bottomButton(
+                  icon: Icons.search,
+                  label: "Search",
+                  onTap: _changeToQueryScreen,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    else{
+      return Scaffold(
+        appBar:AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: "Deselect all",
+             onPressed: () async {
+              setState((){
+                _selectedIndexes.clear();
+                _isSelectedMode=false;
+              });
+             }
+          ),
+          title: Text("${_selectedIndexes.length} selected"),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: "Share",
+              onPressed: () async{
+                final filesToShare = _selectedIndexes
+                  .map((i) => XFile(_photos[i].path))
+                  .toList();
+
+                await Share.shareXFiles(filesToShare);
+                setState((){
+                  
+                  _selectedIndexes.clear();
+                  _isSelectedMode=false;
+                });
+              }
+            )
+          ]
+        ),
+        body: 
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: GridView.builder(
+            controller: _gridController,
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.75,
+            ),
+            itemCount: _photos.length,
+            itemBuilder: (context, i) {
+              final file = _photos[i];
+              final isPdf = file.path.endsWith('.pdf');
+              final isSelected=_selectedIndexes.contains(i);
+
+              return GestureDetector(
+                onTap: () async {
+                  if(_selectedIndexes.contains(i)){
+                    setState((){
+                      _selectedIndexes.remove(i);
+                    });
+                    if (_selectedIndexes.isEmpty) {
+                      _isSelectedMode = false;
+                    }
+                  }
+                  else{
+                    if(_selectedIndexes.length>=5){
+                      _showError("You cannot share more than 5 at once");
+                    }
+                    else{
+                      setState((){
+                        _selectedIndexes.add(i);
+                      });
+                    }
+                  }
+                },
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: isPdf
+                            ? Image.file(
+                                File('${file.path}.thumb.jpg'),
+                                fit: BoxFit.cover,
+                                cacheWidth: 500,
+                              )
+                            : Image.file(
+                                file,
+                                fit: BoxFit.cover,
+                                cacheWidth: 500,
+                              ),
+                      ),
+                    ),
+
+                    if (isSelected)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                      );
+                      ),
 
-                      if (deleted == true) {
-                        await _load();
-                      }
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: isPdf
-                          ? Image.file(
-                              File('${file.path}.thumb.jpg'),
-                              fit: BoxFit.cover,
-                              cacheWidth: 500,
-                            )
-                          : Image.file(
-                              file,
-                              fit: BoxFit.cover,
-                              cacheWidth: 500,
-                            ),
-                    ),
-                  );
-                },
-              ),
-            ),
-      ),
-
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 1,
-                offset: const Offset(0, -1),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _bottomButton(
-                icon: Icons.photo_library,
-                label: "Gallery",
-                onTap: _pickFromGallery,
-              ),
-              _bottomButton(
-                icon: Icons.camera_alt,
-                label: "Scan",
-                onTap: _scanDocument,
-              ),
-              _bottomButton(
-                icon: Icons.search,
-                label: "Search",
-                onTap: _changeToQueryScreen,
-              ),
-            ],
+                    if (isSelected)
+                      const Positioned(
+                        top: 8,
+                        right: 8,
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: Colors.blue,
+                          child: Icon(Icons.check, size: 16, color: Colors.white),
+                        ),
+                      ),
+                  ],
+                )
+              );
+            },
           ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   Future<DocumentTypeFilter?> _filterSelection() async {
