@@ -937,6 +937,8 @@ class _MyHomePageState extends State<MyHomePage> {
       appstage = AppStage.QueryScreen;
      _queryphotos.clear();
      _queryController.clear();
+     _isSelectedMode = false;
+    _selectedIndexes.clear();
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -957,7 +959,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
   Future<void> _deleteaccount() async{
-    final token=storage.read(key: 'token');
+    final token=await storage.read(key: 'token');
+
+    for(final f in _photos){
+      if (await f.exists()) {
+        await f.delete();
+      }
+    }
+    await _load();
+    _showSuccess("All files are deleted");
     
     final result=await http.post(
       Uri.parse('$baseUrl/delete-user'),
@@ -966,6 +976,7 @@ class _MyHomePageState extends State<MyHomePage> {
         'Authorization': 'Bearer $token',
       },
     );
+    
 
     if(result.statusCode==200){
       await storage.delete(key:'token');
@@ -1015,11 +1026,54 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+
+
+  PreferredSizeWidget _selectAppBar(String window){
+    return AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          tooltip: "Deselect all",
+            onPressed: () async {
+            setState((){
+              _selectedIndexes.clear();
+              _isSelectedMode=false;
+            });
+            }
+        ),
+        title: Text("${_selectedIndexes.length} selected"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            tooltip: "Share",
+            onPressed: () async{
+              
+              if(window=="Document"){
+                final filesToShare = _selectedIndexes
+                  .map((i) => XFile(_photos[i].path))
+                  .toList();
+                await Share.shareXFiles(filesToShare);
+              }
+              else{
+                final filesToShare = _selectedIndexes
+                  .map((i) => XFile(_queryphotos[i].path))
+                  .toList();
+                await Share.shareXFiles(filesToShare);
+              }
+              setState((){
+                
+                _selectedIndexes.clear();
+                _isSelectedMode=false;
+              });
+            }
+          )
+        ]
+      );
+  }
+
   Widget _buildDocument(BuildContext context) {
-    if(!_isSelectedMode){
-      return 
-      Scaffold(
-        appBar: AppBar(
+    return Scaffold(
+        appBar: (!_isSelectedMode) ? 
+        AppBar(
           leading: IconButton(
             icon: _profileimage == null
                 ? const Icon(Icons.person)
@@ -1049,8 +1103,10 @@ class _MyHomePageState extends State<MyHomePage> {
             },
           ),
           title: const Text('My Documents'),
-        ),
-
+        )
+        :
+        _selectAppBar("Document"),
+        
         body: SafeArea(
           child: _photos.isEmpty
             ? const Center(
@@ -1082,30 +1138,55 @@ class _MyHomePageState extends State<MyHomePage> {
                   itemBuilder: (context, i) {
                     final file = _photos[i];
                     final isPdf = file.path.endsWith('.pdf');
+                    final isSelected = _selectedIndexes.contains(i);  
 
                     return GestureDetector(
                       onTap: () async {
-                        final deleted = await Navigator.push<bool>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => FullScreenImage(
-                              files: _photos,
-                              startIndex: i,
+                        if(!_isSelectedMode){
+                          final deleted = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => FullScreenImage(
+                                files: _photos,
+                                startIndex: i,
+                              ),
                             ),
-                          ),
-                        );
+                          );
 
-                        if (deleted == true) {
-                          await _load();
+                          if (deleted == true) {
+                            await _load();
+                          }
+                        }
+                        else{
+                          if(_selectedIndexes.contains(i)){
+                            setState((){
+                              _selectedIndexes.remove(i);
+                            });
+                            if (_selectedIndexes.isEmpty) {
+                              _isSelectedMode = false;
+                            }
+                          }
+                          else{
+                            if(_selectedIndexes.length>=5){
+                              _showError("You cannot share more than 5 at once");
+                            }
+                            else{
+                              setState((){
+                                _selectedIndexes.add(i);
+                              });
+                            }
+                          }
                         }
                       },
                       onLongPress:() async {
-                        setState((){
-                          _isSelectedMode=true;
-                          _selectedIndexes.add(i);
-                        });
+                        if(!_isSelectedMode){
+                          setState((){
+                            _isSelectedMode=true;
+                            _selectedIndexes.add(i);
+                          });
+                        }
                       },
-                      child: ClipRRect(
+                      child: !_isSelectedMode ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: isPdf
                             ? Image.file(
@@ -1118,6 +1199,47 @@ class _MyHomePageState extends State<MyHomePage> {
                                 fit: BoxFit.cover,
                                 cacheWidth: 500,
                               ),
+                      ) : 
+                      Stack(
+                        children: [
+                          Positioned.fill(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: isPdf
+                                  ? Image.file(
+                                      File('${file.path}.thumb.jpg'),
+                                      fit: BoxFit.cover,
+                                      cacheWidth: 500,
+                                    )
+                                  : Image.file(
+                                      file,
+                                      fit: BoxFit.cover,
+                                      cacheWidth: 500,
+                                    ),
+                            ),
+                          ),
+
+                          if (isSelected)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+
+                          if (isSelected)
+                            const Positioned(
+                              top: 8,
+                              right: 8,
+                              child: CircleAvatar(
+                                radius: 12,
+                                backgroundColor: Colors.blue,
+                                child: Icon(Icons.check, size: 16, color: Colors.white),
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   },
@@ -1125,7 +1247,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
         ),
 
-        bottomNavigationBar: SafeArea(
+        bottomNavigationBar: !_isSelectedMode ? SafeArea(
           top: false,
           child: Container(
             height: 80,
@@ -1160,128 +1282,8 @@ class _MyHomePageState extends State<MyHomePage> {
               ],
             ),
           ),
-        ),
-      );
-    }
-    else{
-      return Scaffold(
-        appBar:AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: "Deselect all",
-             onPressed: () async {
-              setState((){
-                _selectedIndexes.clear();
-                _isSelectedMode=false;
-              });
-             }
-          ),
-          title: Text("${_selectedIndexes.length} selected"),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.share),
-              tooltip: "Share",
-              onPressed: () async{
-                final filesToShare = _selectedIndexes
-                  .map((i) => XFile(_photos[i].path))
-                  .toList();
-
-                await Share.shareXFiles(filesToShare);
-                setState((){
-                  
-                  _selectedIndexes.clear();
-                  _isSelectedMode=false;
-                });
-              }
-            )
-          ]
-        ),
-        body: 
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: GridView.builder(
-            controller: _gridController,
-            gridDelegate:
-                const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 0.75,
-            ),
-            itemCount: _photos.length,
-            itemBuilder: (context, i) {
-              final file = _photos[i];
-              final isPdf = file.path.endsWith('.pdf');
-              final isSelected=_selectedIndexes.contains(i);
-
-              return GestureDetector(
-                onTap: () async {
-                  if(_selectedIndexes.contains(i)){
-                    setState((){
-                      _selectedIndexes.remove(i);
-                    });
-                    if (_selectedIndexes.isEmpty) {
-                      _isSelectedMode = false;
-                    }
-                  }
-                  else{
-                    if(_selectedIndexes.length>=5){
-                      _showError("You cannot share more than 5 at once");
-                    }
-                    else{
-                      setState((){
-                        _selectedIndexes.add(i);
-                      });
-                    }
-                  }
-                },
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: isPdf
-                            ? Image.file(
-                                File('${file.path}.thumb.jpg'),
-                                fit: BoxFit.cover,
-                                cacheWidth: 500,
-                              )
-                            : Image.file(
-                                file,
-                                fit: BoxFit.cover,
-                                cacheWidth: 500,
-                              ),
-                      ),
-                    ),
-
-                    if (isSelected)
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-
-                    if (isSelected)
-                      const Positioned(
-                        top: 8,
-                        right: 8,
-                        child: CircleAvatar(
-                          radius: 12,
-                          backgroundColor: Colors.blue,
-                          child: Icon(Icons.check, size: 16, color: Colors.white),
-                        ),
-                      ),
-                  ],
-                )
-              );
-            },
-          ),
-        ),
-      );
-    }
+        ): null,
+    );
   }
 
   Future<DocumentTypeFilter?> _filterSelection() async {
@@ -1359,13 +1361,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildQueryScreen(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: (!_isSelectedMode)? AppBar(
         title: const Text('Search Documents'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => setState(() => appstage = AppStage.document),
         ),
-      ),
+      ) : _selectAppBar("Query"),
       body: Column(
         children: [
           Padding(
@@ -1469,24 +1471,103 @@ class _MyHomePageState extends State<MyHomePage> {
                       itemBuilder: (context, i) {
                         final file = _queryphotos[i];
                         final isPdf = file.path.endsWith('.pdf');
+                        final isSelected = _selectedIndexes.contains(i); 
                         return GestureDetector(
                           onTap: () async {
-                            final deleted = await Navigator.push<bool>(
-                              context,
-                              MaterialPageRoute(builder: (_) => FullScreenImage(files: _queryphotos, startIndex: i)),
-                            );
-                            if (deleted == true) {
-                              await _load();
-                              await _queryDocument();
+                            if(!_isSelectedMode){
+                              final deleted = await Navigator.push<bool>(
+                                context,
+                                MaterialPageRoute(builder: (_) => FullScreenImage(files: _queryphotos, startIndex: i)),
+                              );
+                              if (deleted == true) {
+                                await _load();
+                                await _queryDocument();
+                              }
+                            }
+                            else{
+                              if(_selectedIndexes.contains(i)){
+                                setState((){
+                                  _selectedIndexes.remove(i);
+                                });
+                                if (_selectedIndexes.isEmpty) {
+                                  _isSelectedMode = false;
+                                }
+                              }
+                              else{
+                                if(_selectedIndexes.length>=5){
+                                  _showError("You cannot share more than 5 at once");
+                                }
+                                else{
+                                  setState((){
+                                    _selectedIndexes.add(i);
+                                  });
+                                }
+                              }
                             }
                           },
-                          child:
-                          ClipRRect(
+                          onLongPress: () async{
+                            if(!_isSelectedMode){
+                              setState((){
+                                _isSelectedMode=true;
+                                _selectedIndexes.add(i);
+                              });
+                            }
+                          },
+                          child: !_isSelectedMode ? ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: isPdf
-                              ? Image.file(File('${file.path}.thumb.jpg'), fit: BoxFit.cover, cacheWidth: 500)
-                              : Image.file(file, fit: BoxFit.cover, cacheWidth: 500),
-                            ),
+                                ? Image.file(
+                                    File('${file.path}.thumb.jpg'),
+                                    fit: BoxFit.cover,
+                                    cacheWidth: 500,
+                                  )
+                                : Image.file(
+                                    file,
+                                    fit: BoxFit.cover,
+                                    cacheWidth: 500,
+                                  ),
+                          ) : 
+                          Stack(
+                            children: [
+                              Positioned.fill(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: isPdf
+                                      ? Image.file(
+                                          File('${file.path}.thumb.jpg'),
+                                          fit: BoxFit.cover,
+                                          cacheWidth: 500,
+                                        )
+                                      : Image.file(
+                                          file,
+                                          fit: BoxFit.cover,
+                                          cacheWidth: 500,
+                                        ),
+                                ),
+                              ),
+
+                              if (isSelected)
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+
+                              if (isSelected)
+                                const Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: Colors.blue,
+                                    child: Icon(Icons.check, size: 16, color: Colors.white),
+                                  ),
+                                ),
+                            ],
+                          ),
                           );
                         },
                     ),
