@@ -31,6 +31,7 @@ import 'pages/profile_page.dart';
 import 'pages/full_screen_image.dart';
 import 'widgets/document_grid.dart';
 import 'pages/favourite_page.dart';
+import 'pages/browser_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -1130,13 +1131,21 @@ class _MyHomePageState extends State<MyHomePage> {
                 final filesToShare = _selectedIndexes
                   .map((i) => XFile(_photos[i].path))
                   .toList();
-                await Share.shareXFiles(filesToShare);
+                await Share.shareXFiles(
+                  filesToShare,
+                  text: caption,
+                  subject: "Shared via DocEzy",
+                );
               }
               else{
                 final filesToShare = _selectedIndexes
                   .map((i) => XFile(_queryphotos[i].path))
                   .toList();
-                await Share.shareXFiles(filesToShare);
+                await Share.shareXFiles(
+                  filesToShare,
+                  text: caption,
+                  subject: "Shared via DocEzy",
+                );
               }
               setState((){
                 _selectedIndexes.clear();
@@ -1261,6 +1270,19 @@ class _MyHomePageState extends State<MyHomePage> {
                   context,
                   MaterialPageRoute(builder: (_) => const FavouritesPage()),
                 );
+                await _load();
+              },
+            ),
+
+            IconButton(
+              icon: const Icon(Icons.folder, size: 24, color: Colors.black),
+              tooltip:"Browser",
+              onPressed: () async{
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BrowserPage()),
+                );
+                await _load();
               },
             ),
           ],
@@ -1344,7 +1366,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 _bottomButton(
                   icon: Icons.upload_file,
-                  label: "Files",
+                  label: "Upload",
                   onTap: _pickFromFile,
                 ),
               ],
