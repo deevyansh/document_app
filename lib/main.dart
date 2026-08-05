@@ -1228,6 +1228,155 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Widget _buildRecentRow() {
+    if (_photos.isEmpty) return const SizedBox.shrink();
+
+    // 7 recent files + 1 "show more" tile = 8 slots (2×4)
+    final recent = _photos.take(7).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(12, 12, 12, 6),
+          child: Text('Recent',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: GridView.count(
+            crossAxisCount: 4,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 0.75,
+            children: [
+              // ── recent file tiles ──────────────────────────────
+              ...recent.map((file) {
+                final isPdf = file.path.endsWith('.pdf');
+                final realIndex = _photos.indexOf(file);
+                return GestureDetector(
+                  onTap: () async {
+                    final deleted = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FullScreenImage(
+                          files: _photos,
+                          startIndex: realIndex,
+                        ),
+                      ),
+                    );
+                    if (deleted == true) await _load();
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(
+                      isPdf ? File('${file.path}.thumb.jpg') : file,
+                      fit: BoxFit.cover,
+                      cacheWidth: 200,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.insert_drive_file,
+                            color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+
+              // ── "Show more" tile (8th slot) → opens browser ─────
+              GestureDetector(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BrowserPage()),
+                  );
+                  await _load();
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.more_horiz, size: 28, color: Colors.grey),
+                      SizedBox(height: 4),
+                      Text('Show more',
+                          style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWidgetPromo() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _promoAddWidget,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.search, color: Colors.white, size: 28),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Search from your home screen',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600)),
+                    SizedBox(height: 2),
+                    Text('Add the DocEzy search widget',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.add_circle, color: Colors.white, size: 26),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _promoAddWidget() async {
+    try {
+      final supported =
+          await methodChannel.invokeMethod<bool>('isPinWidgetSupported') ?? false;
+      if (!supported) {
+        _showError("Your device doesn't support adding widgets this way. "
+            "Long-press your home screen to add it manually.");
+        return;
+      }
+      await methodChannel.invokeMethod('requestPinWidget');
+      // OS shows its own confirmation dialog from here
+    } catch (e) {
+      _showError("Couldn't add the widget.");
+    }
+  }
+
   Widget _buildDocument(BuildContext context) {
     return Scaffold(
         appBar: (!_isSelectedMode) ? 
@@ -1260,7 +1409,6 @@ class _MyHomePageState extends State<MyHomePage> {
               }
             },
           ),
-          title: const Text('My Documents'),
           actions: [
             IconButton(
               icon: const  Icon(Icons.favorite, size: 24, color: Colors.red),
@@ -1290,46 +1438,33 @@ class _MyHomePageState extends State<MyHomePage> {
         :
         _selectAppBar("Document"),
         
-        body: 
-        SafeArea(
-          child: _photos.isEmpty
-            ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.folder_open, size: 80, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text(
-                      'No documents yet',
-                      style: TextStyle(fontSize: 18),
-                    ),
-                    Text('Tap Scan or Gallery below to add your first document'),
-                  ],
-                ),
-              )
-            : 
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: DocumentGrid(
-                files: _photos,
-                controller: _gridController,
-                crossAxisCount: 3,
-                childAspectRatio: 0.75,
-                isSelectionMode: _isSelectedMode,
-                selectedIndexes: _selectedIndexes,
-                onLongPress: _handleGridLongPress,
-                onTap: (i) => _handleGridTap(
-                  _photos, i,
-                  onOpen: () async {
-                    final deleted = await Navigator.push<bool>(
-                      context,
-                      MaterialPageRoute(builder: (_) => FullScreenImage(files: _photos, startIndex: i)),
-                    );
-                    if (deleted == true) await _load();
-                  },
-                ),
-              )
-            ),
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+
+              
+
+
+              if (!_isSelectedMode) _buildWidgetPromo(),
+              if (!_isSelectedMode && _photos.isNotEmpty) _buildRecentRow(),
+              Expanded(
+                child: _photos.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.folder_open, size: 80, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text('No documents yet', style: TextStyle(fontSize: 18)),
+                            Text('Tap Scan or Gallery below to add your first document'),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
         ),
 
         bottomNavigationBar: !_isSelectedMode ? SafeArea(
