@@ -200,7 +200,8 @@ class _MyHomePageState extends State<MyHomePage> {
           if (name.startsWith('profile_')) return false;
           if (name.endsWith('.pdf')) return true;
           if (name.endsWith('profile.jpg')) return false;
-          return name.endsWith('.jpg') && !name.endsWith('.thumb.jpg');
+          if (name.endsWith('.thumb.jpg')) return false;
+          return name.endsWith('.jpg') || name.endsWith('.png');
         })
         .toList();
 
@@ -366,6 +367,17 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
+  Future<String> _detectExt(String filepath) async {
+    final bytes = await File(filepath).openRead(0, 12).first;
+    // PDF: %PDF
+    if (bytes.length >= 4 && bytes[0]==0x25 && bytes[1]==0x50 && bytes[2]==0x44 && bytes[3]==0x46) return 'pdf';
+    // JPEG: FF D8 FF
+    if (bytes.length >= 3 && bytes[0]==0xFF && bytes[1]==0xD8 && bytes[2]==0xFF) return 'jpg';
+    // PNG: 89 50 4E 47
+    if (bytes.length >= 4 && bytes[0]==0x89 && bytes[1]==0x50 && bytes[2]==0x4E && bytes[3]==0x47) return 'png';
+    return 'unknown';
+  }
+
   Future<void> _loadqueryphotos(List<dynamic> results) async {
     final files = results
         .map((r) => File(r['doc_path'] as String))
@@ -376,13 +388,30 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _makePdfThumb(String pdfPath) async {
-    final doc = await pdfx.PdfDocument.openFile(pdfPath);
-    final page = await doc.getPage(1);
-    final img = await page.render(width: page.width, height: page.height);
-    await page.close();
-    await doc.close();
-    final thumbPath = '$pdfPath.thumb.jpg';
-    await File(thumbPath).writeAsBytes(img!.bytes);
+    pdfx.PdfDocument? doc;
+    try {
+      doc = await pdfx.PdfDocument.openFile(pdfPath)
+          .timeout(const Duration(seconds: 10));
+
+      final page = await doc.getPage(1);
+      final img = await page.render(width: page.width, height: page.height);
+      await page.close();
+
+      if (img == null || img.bytes.isEmpty) {
+        _showError("PDF image is empty");
+        return;
+      }
+
+      final thumbPath = '$pdfPath.thumb.jpg';
+      await File(thumbPath).writeAsBytes(img.bytes);
+      await FileImage(File(thumbPath)).evict();   // clear stale image cache
+    } on TimeoutException {
+      _showError("PDF not opened (timed out)");
+    } catch (e) {
+      _showError("PDF thumb failed: $e");
+    } finally {
+      await doc?.close();
+    }
   }
 
   Future<String?> _transliterateToHindi(String text) async {
@@ -454,6 +483,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final page = await doc.getPage(1);
     final img = await page.render(width: page.width * 2, height: page.height * 2);
     await page.close();
+    await doc.close();
 
     final dir = await getApplicationDocumentsDirectory();
     final tmp = p.join(dir.path, 'tmp_ocr_${DateTime.now().millisecondsSinceEpoch}.png');
@@ -467,18 +497,31 @@ class _MyHomePageState extends State<MyHomePage> {
   
 
   Future<String> _extractPdfText(String path) async {
-    // 1. Try the text layer — instant, perfect, all pages
-    final document = sf.PdfDocument(inputBytes: await File(path).readAsBytes());
-    final text = sf.PdfTextExtractor(document).extractText();
-    document.dispose();
-    if (text.trim().length >= 20) return text;
-    return await _extractPdfocrText(path);
+    sf.PdfDocument? document;
+    try {
+      document = sf.PdfDocument(inputBytes: await File(path).readAsBytes());
+      final text = sf.PdfTextExtractor(document).extractText();
+      if (text.trim().length >= 20) return text;
+    }
+    catch(e){
+      _showError("PDF cannot be opened. $e");
+    }
+    finally{
+      document?.dispose();
+    }
+    
+
+    try {
+      return await _extractPdfocrText(path);
+    } catch (e) {
+      _showError("PDF OCR failed, cannot read the pdf. $e");
+      return "";
+    }
   }
 
   Future<String> _extractText(String path) async {
     final input = InputImage.fromFilePath(path);
     final result = await _recognizer.processImage(input);
-    print("here i am at extract text");
     print(result.text);
     return result.text;
   }
@@ -548,8 +591,12 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _importFromPath(String filepath) async{
-    final isPdf = filepath.toLowerCase().endsWith('.pdf');
-    final ext = isPdf ? 'pdf' : 'jpg';
+    final ext = await _detectExt(filepath);
+    final isPdf = (ext=='pdf');
+    if(ext=="unknown"){
+      _showError("Import is not supported for this file");
+      return;
+    }
     final dir=await getApplicationDocumentsDirectory();
     final dest=p.join(
       dir.path,
@@ -557,7 +604,12 @@ class _MyHomePageState extends State<MyHomePage> {
     );
     await File(filepath).copy(dest);
     if (isPdf){
-      await _makePdfThumb(dest);
+      try{
+        await _makePdfThumb(dest);
+      }
+      catch(e){
+        _showError("PDF thumb is not generated. $e");
+      }
     }
     await _load();
 
