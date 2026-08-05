@@ -16,15 +16,70 @@ class FullScreenImage extends StatefulWidget {
 }
 
 class _FullScreenImageState extends State<FullScreenImage> {
+  Set<String> _favfiles = {};
   late int _currentindex;
   late final PageController _pageController;
 
+
+  Future<void> _loadFavourites() async {
+    final token = await storage.read(key: "token");
+    if (token == null) return;
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/send-fav'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 200) return;
+
+    final data = jsonDecode(response.body);
+
+    setState(() {
+      _favfiles = {
+        for (final row in data["results"])
+          row["doc_path"] as String,
+      };
+    });
+  }
+ 
   @override
   void initState() {
     super.initState();
+    _loadFavourites();
     _pageController = PageController(initialPage: widget.startIndex);
     _currentindex=widget.startIndex;
   }
+
+  Future<void> _rev_favourites() async{
+    final token= await storage.read(key: "token");
+    if(token==null) return;
+    final file = widget.files[_currentindex];
+
+
+    if(_favfiles.contains(file.path)){
+      setState((){
+        _favfiles.remove(file.path);
+      });
+    }
+    else{
+      setState((){
+        _favfiles.add(file.path);
+      }); 
+    }
+    http.post(
+      Uri.parse('$baseUrl/rev-favourites'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'doc_path': file.path}),
+    );
+  }
+
+
 
   Future<void> delete(BuildContext context) async {
     final token = await storage.read(key: "token");
@@ -176,6 +231,33 @@ class _FullScreenImageState extends State<FullScreenImage> {
                           SizedBox(height: 2),
                           Text(
                             'Share',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.black.withOpacity(0.72),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // favourites
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _rev_favourites(),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          (_favfiles.contains(widget.files[_currentindex].path)) ?
+                          Icon(Icons.favorite, size: 24, color: Colors.black.withOpacity(0.72)) : 
+                          Icon(Icons.favorite_border),
+                          SizedBox(height: 2),
+                          Text(
+                            'Favourites',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.black.withOpacity(0.72),

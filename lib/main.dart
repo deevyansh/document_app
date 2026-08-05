@@ -1121,6 +1121,13 @@ class _MyHomePageState extends State<MyHomePage> {
             },
           ),
           title: const Text('My Documents'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.favorite),
+              tooltip: "Open Your Favourites",
+              onPressed: _emailsubmit,
+            ),
+          ],
         )
         :
         _selectAppBar("Document"),
