@@ -175,7 +175,7 @@ class _FavouritesPageState extends State<FavouritesPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.favorite_border, size: 80, color: Colors.grey),
+                        Icon(Icons.favorite_border, size: 80, color: Colors.red),
                         SizedBox(height: 16),
                         Text('No favourites yet', style: TextStyle(fontSize: 18)),
                         Text('Mark documents as favourite to see them here'),

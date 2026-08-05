@@ -413,9 +413,6 @@ class _MyHomePageState extends State<MyHomePage> {
     final sw = Stopwatch()..start();
     final token = await storage.read(key: 'token');
     if (token == null) return;
-    print('token read: ${sw.elapsedMilliseconds}ms');
-
-
     final raw = _queryController.text.trim();
     final terms = <String>{raw};  
 
@@ -426,7 +423,6 @@ class _MyHomePageState extends State<MyHomePage> {
       ]);
       terms.addAll(results);
     }
-    print('translation done: ${sw.elapsedMilliseconds}ms');
 
     // translit is removed because the sometimes the translit = translate and this is causing the problem a bit high
     // final translit = await _transliterateToHindi(raw);   
@@ -447,13 +443,10 @@ class _MyHomePageState extends State<MyHomePage> {
     else{
       x="img";
     }
-    print("here is the x $x");
     final res= await _safePost("/search-document", {'user_query': combined, 'type_filter':x}, extraHeaders: {'Authorization': 'Bearer $token'});
     if(res==null){return;}
-    print('server responded: ${sw.elapsedMilliseconds}ms');
     final data = jsonDecode(res.body);
     await _loadqueryphotos(data["results"]);
-    print('total: ${sw.elapsedMilliseconds}ms');
   }
 
   Future<String> _extractPdfocrText(String path) async {
@@ -1046,7 +1039,21 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-
+  Future<void> delete(List<String> files) async {
+    final token = await storage.read(key: "token");
+    if (token == null) return;
+    for (final file in files){
+      await File(file).delete();
+      http.post(
+        Uri.parse('$baseUrl/delete-document'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'doc_path': file}),
+      );
+    }
+  }
 
   PreferredSizeWidget _selectAppBar(String window){
     return AppBar(
@@ -1080,10 +1087,51 @@ class _MyHomePageState extends State<MyHomePage> {
                 await Share.shareXFiles(filesToShare);
               }
               setState((){
-                
                 _selectedIndexes.clear();
                 _isSelectedMode=false;
               });
+            }
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.delete),
+            tooltip: "Delete",
+            onPressed: () async{
+              final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Delete documents?'),
+                content: Text(
+                  'Delete ${_selectedIndexes.length} document(s)? This cannot be undone.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Delete'),
+                  ),
+                ],
+              ),
+            );
+            if(confirmed !=true){return;}
+            final pathsToDelete = _selectedIndexes
+                .map((i) => window == "Document" ? _photos[i].path : _queryphotos[i].path)
+                .toList();
+            await delete(pathsToDelete); 
+            if(window=="Document"){
+              _load();
+            }
+            else{
+              _load();
+              _queryDocument();
+            }
+            setState((){
+              _selectedIndexes.clear();
+              _isSelectedMode=false;
+            });
             }
           )
         ]
@@ -1154,7 +1202,7 @@ class _MyHomePageState extends State<MyHomePage> {
           title: const Text('My Documents'),
           actions: [
             IconButton(
-              icon: const Icon(Icons.favorite),
+              icon: const  Icon(Icons.favorite, size: 24, color: Colors.red),
               tooltip: "Open Your Favourites",
               onPressed: () async {
                 await Navigator.push(

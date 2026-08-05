@@ -253,8 +253,8 @@ class _FullScreenImageState extends State<FullScreenImage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           (_favfiles.contains(widget.files[_currentindex].path)) ?
-                          Icon(Icons.favorite, size: 24, color: Colors.black.withOpacity(0.72)) : 
-                          Icon(Icons.favorite_border),
+                          Icon(Icons.favorite, size: 24, color: Colors.red) : 
+                          Icon(Icons.favorite_border, size: 24, color: Colors.black.withOpacity(0.72)),
                           SizedBox(height: 2),
                           Text(
                             'Favourites',
