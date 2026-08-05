@@ -24,6 +24,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter/services.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
+import 'package:file_picker/file_picker.dart';
 
 import 'constants.dart';
 import 'pages/profile_page.dart';
@@ -601,6 +602,23 @@ class _MyHomePageState extends State<MyHomePage> {
     if(images.isEmpty) return;
     for (final image in images) {   
       await _importFromPath(image.path); 
+    }
+  }
+
+  Future<void> _pickFromFile() async {
+    if(!await _hasInternet()){
+      _showError("No internet Connection");
+      return;
+    }
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf','jpg','jpeg','png',],
+    );
+    if (result == null) return;
+    for (final file in result.files) {
+      if (file.path == null) continue;
+      await _importFromPath(file.path!);
     }
   }
 
@@ -1278,6 +1296,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   icon: Icons.search,
                   label: "Search",
                   onTap: _changeToQueryScreen,
+                ),
+                _bottomButton(
+                  icon: Icons.upload_file,
+                  label: "Files",
+                  onTap: _pickFromFile,
                 ),
               ],
             ),
