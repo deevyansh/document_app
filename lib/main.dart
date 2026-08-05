@@ -29,6 +29,8 @@ import 'package:file_picker/file_picker.dart';
 import 'constants.dart';
 import 'pages/profile_page.dart';
 import 'pages/full_screen_image.dart';
+import 'widgets/document_grid.dart';
+import 'pages/favourite_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -1088,6 +1090,35 @@ class _MyHomePageState extends State<MyHomePage> {
       );
   }
 
+
+  void _handleGridTap(List<File> files, int i, {required VoidCallback onOpen}) {
+    if (!_isSelectedMode) {
+      onOpen();   // parent-specific: open fullscreen
+    } else {
+      if (_selectedIndexes.contains(i)) {
+        setState(() {
+          _selectedIndexes.remove(i);
+          if (_selectedIndexes.isEmpty) _isSelectedMode = false;
+        });
+      } else {
+        if (_selectedIndexes.length >= 5) {
+          _showError("You cannot share more than 5 at once");
+        } else {
+          setState(() => _selectedIndexes.add(i));
+        }
+      }
+    }
+  }
+
+  void _handleGridLongPress(int i) {
+    if (!_isSelectedMode) {
+      setState(() {
+        _isSelectedMode = true;
+        _selectedIndexes.add(i);
+      });
+    }
+  }
+
   Widget _buildDocument(BuildContext context) {
     return Scaffold(
         appBar: (!_isSelectedMode) ? 
@@ -1125,14 +1156,20 @@ class _MyHomePageState extends State<MyHomePage> {
             IconButton(
               icon: const Icon(Icons.favorite),
               tooltip: "Open Your Favourites",
-              onPressed: _emailsubmit,
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FavouritesPage()),
+                );
+              },
             ),
           ],
         )
         :
         _selectAppBar("Document"),
         
-        body: SafeArea(
+        body: 
+        SafeArea(
           child: _photos.isEmpty
             ? const Center(
                 child: Column(
@@ -1148,128 +1185,29 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               )
-            : Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: GridView.builder(
-                  controller: _gridController,
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 0.75,
-                  ),
-                  itemCount: _photos.length,
-                  itemBuilder: (context, i) {
-                    final file = _photos[i];
-                    final isPdf = file.path.endsWith('.pdf');
-                    final isSelected = _selectedIndexes.contains(i);  
-
-                    return GestureDetector(
-                      onTap: () async {
-                        if(!_isSelectedMode){
-                          final deleted = await Navigator.push<bool>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => FullScreenImage(
-                                files: _photos,
-                                startIndex: i,
-                              ),
-                            ),
-                          );
-
-                          if (deleted == true) {
-                            await _load();
-                          }
-                        }
-                        else{
-                          if(_selectedIndexes.contains(i)){
-                            setState((){
-                              _selectedIndexes.remove(i);
-                            });
-                            if (_selectedIndexes.isEmpty) {
-                              _isSelectedMode = false;
-                            }
-                          }
-                          else{
-                            if(_selectedIndexes.length>=5){
-                              _showError("You cannot share more than 5 at once");
-                            }
-                            else{
-                              setState((){
-                                _selectedIndexes.add(i);
-                              });
-                            }
-                          }
-                        }
-                      },
-                      onLongPress:() async {
-                        if(!_isSelectedMode){
-                          setState((){
-                            _isSelectedMode=true;
-                            _selectedIndexes.add(i);
-                          });
-                        }
-                      },
-                      child: !_isSelectedMode ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: isPdf
-                            ? Image.file(
-                                File('${file.path}.thumb.jpg'),
-                                fit: BoxFit.cover,
-                                cacheWidth: 500,
-                              )
-                            : Image.file(
-                                file,
-                                fit: BoxFit.cover,
-                                cacheWidth: 500,
-                              ),
-                      ) : 
-                      Stack(
-                        children: [
-                          Positioned.fill(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: isPdf
-                                  ? Image.file(
-                                      File('${file.path}.thumb.jpg'),
-                                      fit: BoxFit.cover,
-                                      cacheWidth: 500,
-                                    )
-                                  : Image.file(
-                                      file,
-                                      fit: BoxFit.cover,
-                                      cacheWidth: 500,
-                                    ),
-                            ),
-                          ),
-
-                          if (isSelected)
-                            Positioned.fill(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.3),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-
-                          if (isSelected)
-                            const Positioned(
-                              top: 8,
-                              right: 8,
-                              child: CircleAvatar(
-                                radius: 12,
-                                backgroundColor: Colors.blue,
-                                child: Icon(Icons.check, size: 16, color: Colors.white),
-                              ),
-                            ),
-                        ],
-                      ),
+            : 
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: DocumentGrid(
+                files: _photos,
+                controller: _gridController,
+                crossAxisCount: 3,
+                childAspectRatio: 0.75,
+                isSelectionMode: _isSelectedMode,
+                selectedIndexes: _selectedIndexes,
+                onLongPress: _handleGridLongPress,
+                onTap: (i) => _handleGridTap(
+                  _photos, i,
+                  onOpen: () async {
+                    final deleted = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(builder: (_) => FullScreenImage(files: _photos, startIndex: i)),
                     );
+                    if (deleted == true) await _load();
                   },
                 ),
-              ),
+              )
+            ),
         ),
 
         bottomNavigationBar: !_isSelectedMode ? SafeArea(
@@ -1490,117 +1428,28 @@ class _MyHomePageState extends State<MyHomePage> {
                   )
                 : Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,           // Changed to 2 for larger images
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 0.72,      // Better aspect for documents
-                      ),
-                      itemCount: _queryphotos.length,
-                      itemBuilder: (context, i) {
-                        final file = _queryphotos[i];
-                        final isPdf = file.path.endsWith('.pdf');
-                        final isSelected = _selectedIndexes.contains(i); 
-                        return GestureDetector(
-                          onTap: () async {
-                            if(!_isSelectedMode){
-                              final deleted = await Navigator.push<bool>(
-                                context,
-                                MaterialPageRoute(builder: (_) => FullScreenImage(files: _queryphotos, startIndex: i)),
-                              );
-                              if (deleted == true) {
-                                await _load();
-                                await _queryDocument();
-                              }
-                            }
-                            else{
-                              if(_selectedIndexes.contains(i)){
-                                setState((){
-                                  _selectedIndexes.remove(i);
-                                });
-                                if (_selectedIndexes.isEmpty) {
-                                  _isSelectedMode = false;
-                                }
-                              }
-                              else{
-                                if(_selectedIndexes.length>=5){
-                                  _showError("You cannot share more than 5 at once");
-                                }
-                                else{
-                                  setState((){
-                                    _selectedIndexes.add(i);
-                                  });
-                                }
-                              }
-                            }
-                          },
-                          onLongPress: () async{
-                            if(!_isSelectedMode){
-                              setState((){
-                                _isSelectedMode=true;
-                                _selectedIndexes.add(i);
-                              });
-                            }
-                          },
-                          child: !_isSelectedMode ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: isPdf
-                                ? Image.file(
-                                    File('${file.path}.thumb.jpg'),
-                                    fit: BoxFit.cover,
-                                    cacheWidth: 500,
-                                  )
-                                : Image.file(
-                                    file,
-                                    fit: BoxFit.cover,
-                                    cacheWidth: 500,
-                                  ),
-                          ) : 
-                          Stack(
-                            children: [
-                              Positioned.fill(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: isPdf
-                                      ? Image.file(
-                                          File('${file.path}.thumb.jpg'),
-                                          fit: BoxFit.cover,
-                                          cacheWidth: 500,
-                                        )
-                                      : Image.file(
-                                          file,
-                                          fit: BoxFit.cover,
-                                          cacheWidth: 500,
-                                        ),
-                                ),
-                              ),
-
-                              if (isSelected)
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.3),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                ),
-
-                              if (isSelected)
-                                const Positioned(
-                                  top: 8,
-                                  right: 8,
-                                  child: CircleAvatar(
-                                    radius: 12,
-                                    backgroundColor: Colors.blue,
-                                    child: Icon(Icons.check, size: 16, color: Colors.white),
-                                  ),
-                                ),
-                            ],
-                          ),
+                    child: 
+                    DocumentGrid(
+                      files: _queryphotos,
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.72,
+                      isSelectionMode: _isSelectedMode,
+                      selectedIndexes: _selectedIndexes,
+                      onLongPress: _handleGridLongPress,
+                      onTap: (i) => _handleGridTap(
+                        _queryphotos, i,
+                        onOpen: () async {
+                          final deleted = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(builder: (_) => FullScreenImage(files: _queryphotos, startIndex: i)),
                           );
+                          if (deleted == true) {
+                            await _load();
+                            await _queryDocument();
+                          }
                         },
-                    ),
+                      ),
+                    )
                   ),
           ),
         ],
