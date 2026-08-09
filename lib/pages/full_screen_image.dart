@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
 import '../constants.dart';        // for baseUrl, storage
 import 'pdf_page.dart';
 
@@ -20,6 +22,9 @@ class _FullScreenImageState extends State<FullScreenImage> {
   late int _currentindex;
   late final PageController _pageController;
 
+  // ── Dynamic Gesture Lock State ──────────────────────────────────────────────
+  final Set<int> _activePointers = {};
+  ScrollPhysics _scrollPhysics = const BouncingScrollPhysics();
 
   Future<void> _loadFavourites() async {
     final token = await storage.read(key: "token");
@@ -44,30 +49,63 @@ class _FullScreenImageState extends State<FullScreenImage> {
       };
     });
   }
- 
+
   @override
   void initState() {
     super.initState();
     _loadFavourites();
     _pageController = PageController(initialPage: widget.startIndex);
-    _currentindex=widget.startIndex;
+    _currentindex = widget.startIndex;
   }
 
-  Future<void> _rev_favourites() async{
-    final token= await storage.read(key: "token");
-    if(token==null) return;
-    final file = widget.files[_currentindex];
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
+  // ── Pointer Handlers to Lock/Unlock Swiping ────────────────────────────────
+  void _onPointerDown(PointerDownEvent event) {
+    _activePointers.add(event.pointer);
+    _updatePhysics();
+  }
 
-    if(_favfiles.contains(file.path)){
-      setState((){
-        _favfiles.remove(file.path);
+  void _onPointerUp(PointerUpEvent event) {
+    _activePointers.remove(event.pointer);
+    _updatePhysics();
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _activePointers.remove(event.pointer);
+    _updatePhysics();
+  }
+
+  void _updatePhysics() {
+    final bool isMultiTouch = _activePointers.length >= 2;
+    final ScrollPhysics targetPhysics = isMultiTouch
+        ? const NeverScrollableScrollPhysics()
+        : const BouncingScrollPhysics();
+
+    if (_scrollPhysics.runtimeType != targetPhysics.runtimeType) {
+      setState(() {
+        _scrollPhysics = targetPhysics;
       });
     }
-    else{
-      setState((){
+  }
+
+  Future<void> _rev_favourites() async {
+    final token = await storage.read(key: "token");
+    if (token == null) return;
+    final file = widget.files[_currentindex];
+
+    if (_favfiles.contains(file.path)) {
+      setState(() {
+        _favfiles.remove(file.path);
+      });
+    } else {
+      setState(() {
         _favfiles.add(file.path);
-      }); 
+      });
     }
     http.post(
       Uri.parse('$baseUrl/rev-favourites'),
@@ -78,8 +116,6 @@ class _FullScreenImageState extends State<FullScreenImage> {
       body: jsonEncode({'doc_path': file.path}),
     );
   }
-
-
 
   Future<void> delete(BuildContext context) async {
     final token = await storage.read(key: "token");
@@ -101,7 +137,6 @@ class _FullScreenImageState extends State<FullScreenImage> {
       body: jsonEncode({'doc_path': file.path}),
     );
   }
-
 
   Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -139,31 +174,38 @@ class _FullScreenImageState extends State<FullScreenImage> {
             height: MediaQuery.of(context).padding.top + 12, // status bar + small padding
             color: Colors.black,
           ),
-          // ── Image / PDF area (takes all remaining space) ──────────────
+          // ── Image / PDF area wrapped in pointer Listener ──────────────────
           Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: widget.files.length,
-              onPageChanged: (i) => setState(() => _currentindex = i),
-              itemBuilder: (context, i) {
-                final file = widget.files[i];
+            child: Listener(
+              onPointerDown: _onPointerDown,
+              onPointerUp: _onPointerUp,
+              onPointerCancel: _onPointerCancel,
+              child: PhotoViewGallery.builder(
+                scrollPhysics: _scrollPhysics, // Dynamically locked on multi-touch
+                itemCount: widget.files.length,
+                pageController: _pageController,
+                onPageChanged: (i) => setState(() => _currentindex = i),
+                backgroundDecoration: const BoxDecoration(color: Colors.black),
+                builder: (context, i) {
+                  final file = widget.files[i];
 
-                if (file.path.endsWith('.pdf')) {
-                  return PdfPage(file: file);
-                }
+                  if (file.path.endsWith('.pdf')) {
+                    return PhotoViewGalleryPageOptions.customChild(
+                      child: PdfPage(file: file),
+                      initialScale: PhotoViewComputedScale.contained,
+                      minScale: PhotoViewComputedScale.contained,
+                      maxScale: PhotoViewComputedScale.covered * 3,
+                    );
+                  }
 
-                return Center(
-                  child: InteractiveViewer(
-                    panEnabled: true,
-                    minScale: 0.8,
-                    maxScale: 4.0,
-                    child: Image.file(
-                      file,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                );
-              },
+                  return PhotoViewGalleryPageOptions(
+                    imageProvider: FileImage(file),
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: PhotoViewComputedScale.covered * 5,
+                    heroAttributes: PhotoViewHeroAttributes(tag: file.path),
+                  );
+                },
+              ),
             ),
           ),
 
@@ -177,12 +219,12 @@ class _FullScreenImageState extends State<FullScreenImage> {
             ),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.72),
                   blurRadius: 8,
-                  offset: Offset(0, -2),
+                  offset: const Offset(0, -2),
                 ),
               ],
             ),
@@ -194,13 +236,13 @@ class _FullScreenImageState extends State<FullScreenImage> {
                   child: InkWell(
                     onTap: () => _confirmDelete(context),
                     borderRadius: BorderRadius.circular(12),
-                    child:  Padding(
-                      padding: EdgeInsets.symmetric(vertical: 6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.delete_outline, size: 24, color: Colors.black.withOpacity(0.72)),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
                             'Delete',
                             style: TextStyle(
@@ -220,15 +262,16 @@ class _FullScreenImageState extends State<FullScreenImage> {
                   child: InkWell(
                     onTap: () => Share.shareXFiles(
                       [XFile(widget.files[_currentindex].path)],
+                      subject: "Shared via DocEzy",
                     ),
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.share_outlined, size: 24, color: Colors.black.withOpacity(0.72)),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
                             'Share',
                             style: TextStyle(
@@ -242,20 +285,21 @@ class _FullScreenImageState extends State<FullScreenImage> {
                     ),
                   ),
                 ),
-                // favourites
+
+                // Favourites
                 Expanded(
                   child: InkWell(
                     onTap: () => _rev_favourites(),
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          (_favfiles.contains(widget.files[_currentindex].path)) ?
-                          Icon(Icons.favorite, size: 24, color: Colors.red) : 
-                          Icon(Icons.favorite_border, size: 24, color: Colors.black.withOpacity(0.72)),
-                          SizedBox(height: 2),
+                          (_favfiles.contains(widget.files[_currentindex].path))
+                              ? const Icon(Icons.favorite, size: 24, color: Colors.red)
+                              : Icon(Icons.favorite_border, size: 24, color: Colors.black.withOpacity(0.72)),
+                          const SizedBox(height: 2),
                           Text(
                             'Favourites',
                             style: TextStyle(

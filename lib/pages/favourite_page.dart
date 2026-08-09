@@ -150,9 +150,22 @@ class _FavouritesPageState extends State<FavouritesPage> {
           icon: const Icon(Icons.share),
           tooltip: "Share",
           onPressed: () async {
-            final filesToShare =
-                _selectedIndexes.map((i) => XFile(_favphotos[i].path)).toList();
-            await Share.shareXFiles(filesToShare);
+            final filesToShare=
+            _selectedIndexes.map((i) => XFile(_favphotos[i].path)).toList();
+            final hasPdf = filesToShare.any((f) => f.path.endsWith('.pdf'));
+            final hasImage = filesToShare.any(
+            (f) =>
+                f.path.endsWith('.jpg') ||
+                f.path.endsWith('.jpeg') ||
+                f.path.endsWith('.png'),
+            );
+            bool isMixed= hasPdf && hasImage;
+            final params = ShareParams(
+                text: isMixed ? null : caption,
+                files: filesToShare,
+                subject: "Shared via DocEzy",
+            );
+            await SharePlus.instance.share(params);
             setState(() {
               _selectedIndexes.clear();
               _isSelectedMode = false;

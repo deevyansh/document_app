@@ -8,5 +8,5 @@ enum ProfilePageAction { deleteaccount, logout }
 enum DocumentTypeFilter { all, image, pdf }
 
 const caption = '''
-This document is smartly shared from DocEzy.
+This document is smartly shared from 𝐃𝐨𝐜𝐄𝐳𝐲.
 ''';

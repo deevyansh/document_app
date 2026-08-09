@@ -337,8 +337,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final String? action = await methodChannel.invokeMethod<String>("getLaunchAction");
     if (action == "search") {
+      Navigator.of(context).popUntil((route) => route.isFirst);
       _changeToQueryScreen();
     } else if (action == "voice_search") {
+      Navigator.of(context).popUntil((route) => route.isFirst);
       _changeToQueryScreen();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _startListening();
