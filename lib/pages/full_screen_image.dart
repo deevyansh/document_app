@@ -164,6 +164,86 @@ class _FullScreenImageState extends State<FullScreenImage> {
     }
   }
 
+  Future<void> _contextwindow(BuildContext context) async{
+    final _contextcontroller= TextEditingController();
+    final token=await storage.read(key: "token");
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/get-context'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body:jsonEncode({
+        'doc_path': widget.files[_currentindex].path, 
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      _contextcontroller.text = data['results'] ?? '';
+    }
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          "Label As",
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: SizedBox(
+          width: 420,
+          child: TextField(
+            controller: _contextcontroller,
+            maxLines: 3,
+            minLines: 2,
+            maxLength: 150,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignLabelWithHint: true,
+              contentPadding: const EdgeInsets.all(16),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.bookmark_add_outlined),
+            label: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+
+    if(saved==true){
+      final response = await http.post(
+        Uri.parse('$baseUrl/save-context'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body:jsonEncode({
+          'context': _contextcontroller.text,
+          'doc_path': widget.files[_currentindex].path,
+        }),
+      );
+    }
+    _contextcontroller.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -302,6 +382,31 @@ class _FullScreenImageState extends State<FullScreenImage> {
                           const SizedBox(height: 2),
                           Text(
                             'Favourites',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.black.withOpacity(0.72),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _contextwindow(context),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit_outlined),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Label',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.black.withOpacity(0.72),

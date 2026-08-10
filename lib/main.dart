@@ -1373,7 +1373,6 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
       await methodChannel.invokeMethod('requestPinWidget');
-      // OS shows its own confirmation dialog from here
     } catch (e) {
       _showError("Couldn't add the widget.");
     }
