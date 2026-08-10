@@ -1,3 +1,11 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import '../constants.dart';
+import 'package:http/http.dart' as http;
+
 class NotesPage extends StatefulWidget {
   const NotesPage({super.key});
 
@@ -6,57 +14,113 @@ class NotesPage extends StatefulWidget {
 }
 
 class _NotesPageState extends State<NotesPage> {
-
   late final QuillController _controller;
+  final FocusNode _editorFocusNode = FocusNode();
+  final ScrollController _editorScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-
     _controller = QuillController.basic();
+  }
+
+  Future<File> _saveNote() async {
+    final dir = await getApplicationDocumentsDirectory();
+
+    final file = File(
+      "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.json",
+    );
+
+    final deltaJson = jsonEncode(_controller.document.toDelta().toJson());
+    await file.writeAsString(deltaJson);
+
+    final plainText = _controller.document.toPlainText();
+    final token = await storage.read(key: 'token');
+
+    await http.post(
+      Uri.parse("$baseUrl/upload-note"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({"doc_path": file.path, "digest": plainText}),
+    );
+
+    return file;
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-
-      appBar: AppBar(
-        title: const Text("Notes"),
-      ),
-
+      appBar: AppBar(title: const Text("Notes")),
       body: Column(
-
         children: [
-
           QuillSimpleToolbar(
             controller: _controller,
             config: const QuillSimpleToolbarConfig(),
           ),
-
           Expanded(
-
-            child: QuillEditor.basic(
-
+            child: QuillEditor(
+              focusNode: _editorFocusNode,
+              scrollController: _editorScrollController,
               controller: _controller,
-
-              config: const QuillEditorConfig(),
-
+              config: QuillEditorConfig(
+                placeholder: 'Start writing your note...',
+                padding: const EdgeInsets.all(16),
+                // This forces correct text color in both light & dark themes
+                customStyles: DefaultStyles(
+                  paragraph: DefaultTextBlockStyle(
+                    TextStyle(
+                      fontSize: 16,
+                      color: isDark ? Colors.white : Colors.black87,
+                      height: 1.4,
+                    ),
+                    const HorizontalSpacing(0, 0),
+                    const VerticalSpacing(0, 6),
+                    const VerticalSpacing(0, 0),
+                    null,
+                  ),
+                  placeHolder: DefaultTextBlockStyle(
+                    TextStyle(
+                      fontSize: 16,
+                      color: isDark
+                          ? Colors.grey.shade500
+                          : Colors.grey.shade600,
+                    ),
+                    const HorizontalSpacing(0, 0),
+                    const VerticalSpacing(0, 0),
+                    const VerticalSpacing(0, 0),
+                    null,
+                  ),
+                ),
+              ),
             ),
-
-          )
-
+          ),
         ],
-
       ),
-
+      floatingActionButton: FloatingActionButton(
+        heroTag: "save_note",
+        onPressed: () async {
+          await _saveNote();
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text("Note saved")));
+          }
+        },
+        tooltip: "Save",
+        child: const Icon(Icons.save_outlined),
+      ),
     );
-
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _editorFocusNode.dispose();
+    _editorScrollController.dispose();
     super.dispose();
   }
 }

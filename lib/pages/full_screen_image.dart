@@ -5,13 +5,17 @@ import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
-import '../constants.dart';        // for baseUrl, storage
+import '../constants.dart'; // for baseUrl, storage
 import 'pdf_page.dart';
 
 class FullScreenImage extends StatefulWidget {
   final List<File> files;
   final int startIndex;
-  const FullScreenImage({super.key, required this.files, required this.startIndex});
+  const FullScreenImage({
+    super.key,
+    required this.files,
+    required this.startIndex,
+  });
 
   @override
   State<FullScreenImage> createState() => _FullScreenImageState();
@@ -44,8 +48,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
 
     setState(() {
       _favfiles = {
-        for (final row in data["results"])
-          row["doc_path"] as String,
+        for (final row in data["results"]) row["doc_path"] as String,
       };
     });
   }
@@ -164,9 +167,9 @@ class _FullScreenImageState extends State<FullScreenImage> {
     }
   }
 
-  Future<void> _contextwindow(BuildContext context) async{
-    final _contextcontroller= TextEditingController();
-    final token=await storage.read(key: "token");
+  Future<void> _contextwindow(BuildContext context) async {
+    final _contextcontroller = TextEditingController();
+    final token = await storage.read(key: "token");
 
     final response = await http.post(
       Uri.parse('$baseUrl/get-context'),
@@ -174,9 +177,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body:jsonEncode({
-        'doc_path': widget.files[_currentindex].path, 
-      }),
+      body: jsonEncode({'doc_path': widget.files[_currentindex].path}),
     );
 
     if (response.statusCode == 200) {
@@ -187,15 +188,10 @@ class _FullScreenImageState extends State<FullScreenImage> {
     final saved = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           "Label As",
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         content: SizedBox(
           width: 420,
@@ -228,14 +224,14 @@ class _FullScreenImageState extends State<FullScreenImage> {
       ),
     );
 
-    if(saved==true){
+    if (saved == true) {
       final response = await http.post(
         Uri.parse('$baseUrl/save-context'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body:jsonEncode({
+        body: jsonEncode({
           'context': _contextcontroller.text,
           'doc_path': widget.files[_currentindex].path,
         }),
@@ -251,7 +247,9 @@ class _FullScreenImageState extends State<FullScreenImage> {
       body: Column(
         children: [
           Container(
-            height: MediaQuery.of(context).padding.top + 12, // status bar + small padding
+            height:
+                MediaQuery.of(context).padding.top +
+                12, // status bar + small padding
             color: Colors.black,
           ),
           // ── Image / PDF area wrapped in pointer Listener ──────────────────
@@ -261,7 +259,8 @@ class _FullScreenImageState extends State<FullScreenImage> {
               onPointerUp: _onPointerUp,
               onPointerCancel: _onPointerCancel,
               child: PhotoViewGallery.builder(
-                scrollPhysics: _scrollPhysics, // Dynamically locked on multi-touch
+                scrollPhysics:
+                    _scrollPhysics, // Dynamically locked on multi-touch
                 itemCount: widget.files.length,
                 pageController: _pageController,
                 onPageChanged: (i) => setState(() => _currentindex = i),
@@ -299,7 +298,9 @@ class _FullScreenImageState extends State<FullScreenImage> {
             ),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.72),
@@ -321,7 +322,11 @@ class _FullScreenImageState extends State<FullScreenImage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.delete_outline, size: 24, color: Colors.black.withOpacity(0.72)),
+                          Icon(
+                            Icons.delete_outline,
+                            size: 24,
+                            color: Colors.black.withOpacity(0.72),
+                          ),
                           const SizedBox(height: 2),
                           Text(
                             'Delete',
@@ -343,6 +348,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
                     onTap: () => Share.shareXFiles(
                       [XFile(widget.files[_currentindex].path)],
                       subject: "Shared via DocEzy",
+                      text: caption,
                     ),
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
@@ -350,7 +356,11 @@ class _FullScreenImageState extends State<FullScreenImage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.share_outlined, size: 24, color: Colors.black.withOpacity(0.72)),
+                          Icon(
+                            Icons.share_outlined,
+                            size: 24,
+                            color: Colors.black.withOpacity(0.72),
+                          ),
                           const SizedBox(height: 2),
                           Text(
                             'Share',
@@ -377,8 +387,16 @@ class _FullScreenImageState extends State<FullScreenImage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           (_favfiles.contains(widget.files[_currentindex].path))
-                              ? const Icon(Icons.favorite, size: 24, color: Colors.red)
-                              : Icon(Icons.favorite_border, size: 24, color: Colors.black.withOpacity(0.72)),
+                              ? const Icon(
+                                  Icons.favorite,
+                                  size: 24,
+                                  color: Colors.red,
+                                )
+                              : Icon(
+                                  Icons.favorite_border,
+                                  size: 24,
+                                  color: Colors.black.withOpacity(0.72),
+                                ),
                           const SizedBox(height: 2),
                           Text(
                             'Favourites',

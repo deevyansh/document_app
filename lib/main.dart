@@ -1,3 +1,4 @@
+import 'package:document_app/pages/notes_page.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -25,6 +26,8 @@ import 'package:flutter/services.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 
 import 'constants.dart';
 import 'pages/profile_page.dart';
@@ -32,6 +35,7 @@ import 'pages/full_screen_image.dart';
 import 'widgets/document_grid.dart';
 import 'pages/favourite_page.dart';
 import 'pages/browser_page.dart';
+import 'pages/notes_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -44,16 +48,19 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'DocEzy',
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        FlutterQuillLocalizations.delegate,
+      ],
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
+          seedColor: Colors.blue,
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          centerTitle: true,
-        ),
+        appBarTheme: const AppBarTheme(elevation: 0, centerTitle: true),
       ),
       home: const MyHomePage(title: 'DocEzy'),
     );
@@ -70,9 +77,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final List<TextEditingController> _otpControllers =List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _otpControllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
-  String get _otpCode =>_otpControllers.map((c) => c.text).join();
+  String get _otpCode => _otpControllers.map((c) => c.text).join();
   List<File> _photos = [];
   List<File> _queryphotos = [];
   final _picker = ImagePicker();
@@ -80,7 +90,7 @@ class _MyHomePageState extends State<MyHomePage> {
   AppStage appstage = AppStage.enterEmail;
   final _emailController = TextEditingController();
   final _otpController = TextEditingController();
-  bool _openedFromShare=false;
+  bool _openedFromShare = false;
   String? _otpError;
   final _queryController = TextEditingController();
   StreamSubscription? _intentSub;
@@ -93,25 +103,25 @@ class _MyHomePageState extends State<MyHomePage> {
     targetLanguage: TranslateLanguage.english,
   );
   final _modelManager = OnDeviceTranslatorModelManager();
-  DocumentTypeFilter _typefilter= DocumentTypeFilter.all;
+  DocumentTypeFilter _typefilter = DocumentTypeFilter.all;
   final FocusNode _queryFocusNode = FocusNode();
   final SpeechToText _speech = SpeechToText();
-  String _querytext="What are you looking for";
-  bool _islistening=false;
+  String _querytext = "What are you looking for";
+  bool _islistening = false;
   File? _profileimage;
-  static const MethodChannel methodChannel =MethodChannel('document_app/widget');
-  int _importdone=0;
-  int _importtotal=0;
+
+  int _importdone = 0;
+  int _importtotal = 0;
   Timer? _otpTimer;
   int _otpSecondsRemaining = 300; // 5 minutes
   bool _canResendOtp = false;
 
-  bool _isSelectedMode=false;
-  Set<int> _selectedIndexes= {};
+  bool _isSelectedMode = false;
+  Set<int> _selectedIndexes = {};
   final ScrollController _gridController = ScrollController();
 
   void _showError(String message) {
-  if (!mounted) return;
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -141,11 +151,13 @@ class _MyHomePageState extends State<MyHomePage> {
     Map<String, String>? extraHeaders,
   }) async {
     try {
-      final res = await http.post(
-        Uri.parse('$baseUrl$path'),
-        headers: {'Content-Type': 'application/json', ...?extraHeaders},
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 30));
+      final res = await http
+          .post(
+            Uri.parse('$baseUrl$path'),
+            headers: {'Content-Type': 'application/json', ...?extraHeaders},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (res.statusCode >= 500) {
         _showError("Server is temporarily unavailable. Please try again.");
@@ -173,7 +185,9 @@ class _MyHomePageState extends State<MyHomePage> {
         .toList();
 
     if (files.isNotEmpty) {
-      files.sort((a, b) => b.path.compareTo(a.path)); // newest last-modified name
+      files.sort(
+        (a, b) => b.path.compareTo(a.path),
+      ); // newest last-modified name
       setState(() {
         _profileimage = files.first;
       });
@@ -181,11 +195,13 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _ensureHindiModel() async {
-    final downloaded = await _modelManager.isModelDownloaded(TranslateLanguage.hindi.bcpCode);
+    final downloaded = await _modelManager.isModelDownloaded(
+      TranslateLanguage.hindi.bcpCode,
+    );
     if (!downloaded) {
       await _modelManager.downloadModel(
         TranslateLanguage.hindi.bcpCode,
-        isWifiRequired: false,     // let it use mobile data too
+        isWifiRequired: false, // let it use mobile data too
       );
     }
   }
@@ -193,18 +209,15 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _load() async {
     final dir = await getApplicationDocumentsDirectory();
 
-    final files = dir
-        .listSync()
-        .whereType<File>()
-        .where((f) {
-          final name = p.basename(f.path);
-          if (name.startsWith('profile_')) return false;
-          if (name.endsWith('.pdf')) return true;
-          if (name.endsWith('profile.jpg')) return false;
-          if (name.endsWith('.thumb.jpg')) return false;
-          return name.endsWith('.jpg') || name.endsWith('.png');
-        })
-        .toList();
+    final files = dir.listSync().whereType<File>().where((f) {
+      final name = p.basename(f.path);
+      if (name.startsWith('profile_')) return false;
+      if (name.endsWith('.pdf')) return true;
+      if (name.endsWith('profile.jpg')) return false;
+      if (name.endsWith('.thumb.jpg')) return false;
+      if (name.endsWith('json')) return true;
+      return name.endsWith('.jpg') || name.endsWith('.png');
+    }).toList();
 
     files.sort((a, b) {
       final aTime = int.parse(p.basenameWithoutExtension(a.path));
@@ -216,8 +229,13 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _otpsubmit() async {
-    final res=await _safePost('/verify-otp',{'email': _emailController.text,'otp': _otpCode});
-    if(res==null){return;}
+    final res = await _safePost('/verify-otp', {
+      'email': _emailController.text,
+      'otp': _otpCode,
+    });
+    if (res == null) {
+      return;
+    }
     final data = jsonDecode(res.body);
     if (_otpCode.length != 6) {
       setState(() {
@@ -234,25 +252,24 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {
         appstage = AppStage.document;
       });
-    }
-    else {
-      setState((){
-        _otpError=data["reason"];
+    } else {
+      setState(() {
+        _otpError = data["reason"];
       });
     }
   }
 
   Future<void> _emailsubmit() async {
-    final res=await _safePost('/get-otp',{'email': _emailController.text});
-    if(res==null){return;}
+    final res = await _safePost('/get-otp', {'email': _emailController.text});
+    if (res == null) {
+      return;
+    }
     final data = jsonDecode(res.body);
     setState(() {
       _startOtpTimer();
       appstage = AppStage.enterOtp;
     });
   }
-
-  
 
   Future<void> _checktoken() async {
     final token = await storage.read(key: 'token');
@@ -268,12 +285,13 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _initialize();
     _ensureHindiModel();
-    _initSpeech();  
+    _initSpeech();
   }
 
-
   Future<bool> _hindiReady() async {
-    return await _modelManager.isModelDownloaded(TranslateLanguage.hindi.bcpCode);
+    return await _modelManager.isModelDownloaded(
+      TranslateLanguage.hindi.bcpCode,
+    );
   }
 
   void _setupWidgetChannel() {
@@ -292,15 +310,15 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> _handleShared(List<SharedMediaFile> files) async{
-    setState((){
-      _importtotal=files.length;
-      _importdone=0;
+  Future<void> _handleShared(List<SharedMediaFile> files) async {
+    setState(() {
+      _importtotal = files.length;
+      _importdone = 0;
     });
 
-    for (final f in files){
+    for (final f in files) {
       await _importFromPath(f.path);
-      setState((){
+      setState(() {
         _importdone++;
       });
     }
@@ -311,9 +329,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _initialize() async {
-
     _setupWidgetChannel();
-    
+
     _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((value) {
       if (value.isNotEmpty) {
         if (!mounted) return;
@@ -335,7 +352,9 @@ class _MyHomePageState extends State<MyHomePage> {
     await _checktoken();
     await _loadProfileImage();
 
-    final String? action = await methodChannel.invokeMethod<String>("getLaunchAction");
+    final String? action = await methodChannel.invokeMethod<String>(
+      "getLaunchAction",
+    );
     if (action == "search") {
       Navigator.of(context).popUntil((route) => route.isFirst);
       _changeToQueryScreen();
@@ -348,8 +367,6 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-
-
   @override
   void dispose() {
     for (final c in _otpControllers) {
@@ -359,7 +376,7 @@ class _MyHomePageState extends State<MyHomePage> {
       f.dispose();
     }
     _otpTimer?.cancel();
-    _enToHi.close();      
+    _enToHi.close();
     _hiToEn.close();
     _recognizer.close();
     _emailController.dispose();
@@ -373,11 +390,25 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<String> _detectExt(String filepath) async {
     final bytes = await File(filepath).openRead(0, 12).first;
     // PDF: %PDF
-    if (bytes.length >= 4 && bytes[0]==0x25 && bytes[1]==0x50 && bytes[2]==0x44 && bytes[3]==0x46) return 'pdf';
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x25 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x44 &&
+        bytes[3] == 0x46)
+      return 'pdf';
     // JPEG: FF D8 FF
-    if (bytes.length >= 3 && bytes[0]==0xFF && bytes[1]==0xD8 && bytes[2]==0xFF) return 'jpg';
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF)
+      return 'jpg';
     // PNG: 89 50 4E 47
-    if (bytes.length >= 4 && bytes[0]==0x89 && bytes[1]==0x50 && bytes[2]==0x4E && bytes[3]==0x47) return 'png';
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47)
+      return 'png';
     return 'unknown';
   }
 
@@ -393,8 +424,9 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _makePdfThumb(String pdfPath) async {
     pdfx.PdfDocument? doc;
     try {
-      doc = await pdfx.PdfDocument.openFile(pdfPath)
-          .timeout(const Duration(seconds: 10));
+      doc = await pdfx.PdfDocument.openFile(
+        pdfPath,
+      ).timeout(const Duration(seconds: 10));
 
       final page = await doc.getPage(1);
       final img = await page.render(width: page.width, height: page.height);
@@ -407,7 +439,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
       final thumbPath = '$pdfPath.thumb.jpg';
       await File(thumbPath).writeAsBytes(img.bytes);
-      await FileImage(File(thumbPath)).evict();   // clear stale image cache
+      await FileImage(File(thumbPath)).evict(); // clear stale image cache
     } on TimeoutException {
       _showError("PDF not opened (timed out)");
     } catch (e) {
@@ -446,7 +478,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final token = await storage.read(key: 'token');
     if (token == null) return;
     final raw = _queryController.text.trim();
-    final terms = <String>{raw};  
+    final terms = <String>{raw};
 
     if (await _hindiReady()) {
       final results = await Future.wait([
@@ -457,26 +489,30 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     // translit is removed because the sometimes the translit = translate and this is causing the problem a bit high
-    // final translit = await _transliterateToHindi(raw);   
+    // final translit = await _transliterateToHindi(raw);
     // if (translit != null) {
     //   print("translit $translit");
     //   terms.add(translit);
     // }
 
-    final combined = terms.join(' ');  
+    final combined = terms.join(' ');
 
     String? x;
-    if(_typefilter==DocumentTypeFilter.all){
-      x="all";
-    }         
-    else if(_typefilter==DocumentTypeFilter.pdf){
-      x="pdf";
+    if (_typefilter == DocumentTypeFilter.all) {
+      x = "all";
+    } else if (_typefilter == DocumentTypeFilter.pdf) {
+      x = "pdf";
+    } else {
+      x = "img";
     }
-    else{
-      x="img";
+    final res = await _safePost(
+      "/search-document",
+      {'user_query': combined, 'type_filter': x},
+      extraHeaders: {'Authorization': 'Bearer $token'},
+    );
+    if (res == null) {
+      return;
     }
-    final res= await _safePost("/search-document", {'user_query': combined, 'type_filter':x}, extraHeaders: {'Authorization': 'Bearer $token'});
-    if(res==null){return;}
     final data = jsonDecode(res.body);
     await _loadqueryphotos(data["results"]);
   }
@@ -484,20 +520,24 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<String> _extractPdfocrText(String path) async {
     final doc = await pdfx.PdfDocument.openFile(path);
     final page = await doc.getPage(1);
-    final img = await page.render(width: page.width * 2, height: page.height * 2);
+    final img = await page.render(
+      width: page.width * 2,
+      height: page.height * 2,
+    );
     await page.close();
     await doc.close();
 
     final dir = await getApplicationDocumentsDirectory();
-    final tmp = p.join(dir.path, 'tmp_ocr_${DateTime.now().millisecondsSinceEpoch}.png');
+    final tmp = p.join(
+      dir.path,
+      'tmp_ocr_${DateTime.now().millisecondsSinceEpoch}.png',
+    );
     await File(tmp).writeAsBytes(img!.bytes);
 
-    final text = await _extractText(tmp);   
-    await File(tmp).delete();              
+    final text = await _extractText(tmp);
+    await File(tmp).delete();
     return text;
   }
-
-  
 
   Future<String> _extractPdfText(String path) async {
     sf.PdfDocument? document;
@@ -505,14 +545,11 @@ class _MyHomePageState extends State<MyHomePage> {
       document = sf.PdfDocument(inputBytes: await File(path).readAsBytes());
       final text = sf.PdfTextExtractor(document).extractText();
       if (text.trim().length >= 20) return text;
-    }
-    catch(e){
+    } catch (e) {
       _showError("PDF cannot be opened. $e");
-    }
-    finally{
+    } finally {
       document?.dispose();
     }
-    
 
     try {
       return await _extractPdfocrText(path);
@@ -532,16 +569,23 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<bool> _storeEmbedding(String dest, String text) async {
     final token = await storage.read(key: 'token');
     if (token == null) return false;
-    final res=await _safePost("/send-document", {'doc_path': dest, 'text': text}, extraHeaders: {'Authorization': 'Bearer $token'});
-    if(res==null){
+    final res = await _safePost(
+      "/send-document",
+      {'doc_path': dest, 'text': text},
+      extraHeaders: {'Authorization': 'Bearer $token'},
+    );
+    if (res == null) {
       return false;
     }
     return true;
   }
 
-  Future<String> _buildPdfFromImages(List<String> imagePaths, String dest) async {
+  Future<String> _buildPdfFromImages(
+    List<String> imagePaths,
+    String dest,
+  ) async {
     final doc = sf.PdfDocument();
-    doc.pageSettings.size = sf.PdfPageSize.a4;      // every page identical
+    doc.pageSettings.size = sf.PdfPageSize.a4; // every page identical
     doc.pageSettings.margins.all = 0;
 
     for (final imgPath in imagePaths) {
@@ -550,7 +594,8 @@ class _MyHomePageState extends State<MyHomePage> {
       final pageSize = page.getClientSize();
 
       // fit the image inside the A4 page, preserving aspect ratio
-      final scale = (pageSize.width / image.width) < (pageSize.height / image.height)
+      final scale =
+          (pageSize.width / image.width) < (pageSize.height / image.height)
           ? pageSize.width / image.width
           : pageSize.height / image.height;
       final w = image.width * scale;
@@ -593,41 +638,38 @@ class _MyHomePageState extends State<MyHomePage> {
     _emailsubmit();
   }
 
-  Future<void> _importFromPath(String filepath) async{
+  Future<void> _importFromPath(String filepath) async {
     final ext = await _detectExt(filepath);
-    final isPdf = (ext=='pdf');
-    if(ext=="unknown"){
+    final isPdf = (ext == 'pdf');
+    if (ext == "unknown") {
       _showError("Import is not supported for this file");
       return;
     }
-    final dir=await getApplicationDocumentsDirectory();
-    final dest=p.join(
+    final dir = await getApplicationDocumentsDirectory();
+    final dest = p.join(
       dir.path,
       '${DateTime.now().millisecondsSinceEpoch}.$ext',
     );
     await File(filepath).copy(dest);
-    if (isPdf){
-      try{
+    if (isPdf) {
+      try {
         await _makePdfThumb(dest);
-      }
-      catch(e){
+      } catch (e) {
         _showError("PDF thumb is not generated. $e");
       }
     }
     await _load();
 
-
-    if(!isPdf){
+    if (!isPdf) {
       final text = await _extractText(dest);
-      if(!await _storeEmbedding(dest, text)){
+      if (!await _storeEmbedding(dest, text)) {
         await File(dest).delete();
         await _load();
         return;
       }
-    }
-    else{
-      final text = await _extractPdfText(dest); 
-      if(!await _storeEmbedding(dest, text)){
+    } else {
+      final text = await _extractPdfText(dest);
+      if (!await _storeEmbedding(dest, text)) {
         await File(dest).delete();
         await _load();
         return;
@@ -640,7 +682,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return !result.contains(ConnectivityResult.none);
   }
 
-  Future<void> _pickFromGallery() async{
+  Future<void> _pickFromGallery() async {
     if (!await _hasInternet()) {
       _showError("No internet connection.");
       return;
@@ -649,21 +691,21 @@ class _MyHomePageState extends State<MyHomePage> {
       maxWidth: 1600,
       imageQuality: 85,
     );
-    if(images.isEmpty) return;
-    for (final image in images) {   
-      await _importFromPath(image.path); 
+    if (images.isEmpty) return;
+    for (final image in images) {
+      await _importFromPath(image.path);
     }
   }
 
   Future<void> _pickFromFile() async {
-    if(!await _hasInternet()){
+    if (!await _hasInternet()) {
       _showError("No internet Connection");
       return;
     }
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: ['pdf','jpg','jpeg','png',],
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
     );
     if (result == null) return;
     for (final file in result.files) {
@@ -672,7 +714,6 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-
   Future<void> _scanDocument() async {
     if (!await _hasInternet()) {
       _showError("No internet connection.");
@@ -680,9 +721,9 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     final scanner = DocumentScanner(
       options: DocumentScannerOptions(
-        documentFormats: const {DocumentFormat.jpeg, DocumentFormat.pdf},  
+        documentFormats: const {DocumentFormat.jpeg, DocumentFormat.pdf},
         mode: ScannerMode.base,
-        pageLimit: 5,                                                       
+        pageLimit: 5,
         isGalleryImport: true,
       ),
     );
@@ -692,10 +733,12 @@ class _MyHomePageState extends State<MyHomePage> {
     if (images == null || images.isEmpty) return;
     if (images.length == 1) {
       await _importFromPath(result.images!.first);
-    } 
-    else {
+    } else {
       final dir = await getApplicationDocumentsDirectory();
-      final dest = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final dest = p.join(
+        dir.path,
+        '${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
       await _buildPdfFromImages(images, dest);
       await _makePdfThumb(dest);
       await _load();
@@ -716,14 +759,14 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _speechEnabled = false;
 
   Future<void> _startListening() async {
-    setState((){
-      _querytext="Listening..";
-      _islistening=true;
+    setState(() {
+      _querytext = "Listening..";
+      _islistening = true;
       _queryController.clear();
     });
     await _speech.listen(
       onResult: (result) {
-        setState((){
+        setState(() {
           _queryController.text = result.recognizedWords;
         });
         if (result.finalResult) {
@@ -733,11 +776,11 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<void> _stopListening() async{
+  Future<void> _stopListening() async {
     await _speech.stop();
-    setState((){
-      _querytext="What are you looking for";
-      _islistening=false;
+    setState(() {
+      _querytext = "What are you looking for";
+      _islistening = false;
     });
     await _queryDocument();
   }
@@ -749,7 +792,6 @@ class _MyHomePageState extends State<MyHomePage> {
       await _startListening();
     }
   }
-  
 
   @override
   Widget build(BuildContext context) {
@@ -762,18 +804,14 @@ class _MyHomePageState extends State<MyHomePage> {
               const SizedBox(
                 width: 30,
                 height: 30,
-                child: CircularProgressIndicator(
-                  strokeWidth: 4,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 4),
               ),
               const SizedBox(height: 24),
 
               SizedBox(
                 width: 220,
                 child: LinearProgressIndicator(
-                  value: _importtotal == 0
-                      ? null
-                      : _importdone / _importtotal,
+                  value: _importtotal == 0 ? null : _importdone / _importtotal,
                 ),
               ),
               const SizedBox(height: 12),
@@ -835,7 +873,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   labelText: 'Email Address',
                   hintText: 'you@example.com',
                   prefixIcon: const Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   filled: true,
                   fillColor: Colors.grey[50],
                 ),
@@ -847,7 +887,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: ElevatedButton(
                   onPressed: _emailsubmit,
                   style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 2,
                   ),
                   child: const Text('Send OTP', style: TextStyle(fontSize: 18)),
@@ -869,7 +911,11 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.lock_outline, size: 80, color: Colors.deepPurple),
+              const Icon(
+                Icons.lock_outline,
+                size: 80,
+                color: Colors.deepPurple,
+              ),
               const SizedBox(height: 24),
               const Text(
                 'Verify OTP',
@@ -985,10 +1031,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 const SizedBox(height: 12),
                 Text(
                   _otpError!,
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: Colors.red, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -1001,12 +1044,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _changeToQueryScreen() {
     setState(() {
-      _typefilter=DocumentTypeFilter.all;
+      _typefilter = DocumentTypeFilter.all;
       appstage = AppStage.QueryScreen;
-     _queryphotos.clear();
-     _queryController.clear();
-     _isSelectedMode = false;
-    _selectedIndexes.clear();
+      _queryphotos.clear();
+      _queryController.clear();
+      _isSelectedMode = false;
+      _selectedIndexes.clear();
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1016,69 +1059,57 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-
-  Future<void> _logout() async{
-    await storage.delete(key:'token');
+  Future<void> _logout() async {
+    await storage.delete(key: 'token');
     await storage.delete(key: 'email');
-    setState((){
-      appstage= AppStage.enterEmail;
+    setState(() {
+      appstage = AppStage.enterEmail;
     });
   }
 
+  Future<void> _deleteaccount() async {
+    final token = await storage.read(key: 'token');
 
-  Future<void> _deleteaccount() async{
-    final token=await storage.read(key: 'token');
-
-    for(final f in _photos){
+    for (final f in _photos) {
       if (await f.exists()) {
         await f.delete();
       }
     }
     await _load();
     _showSuccess("All files are deleted");
-    
-    final result=await http.post(
+
+    final result = await http.post(
       Uri.parse('$baseUrl/delete-user'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
     );
-    
 
-    if(result.statusCode==200){
-      await storage.delete(key:'token');
-      setState((){
-        appstage=AppStage.enterEmail;
+    if (result.statusCode == 200) {
+      await storage.delete(key: 'token');
+      setState(() {
+        appstage = AppStage.enterEmail;
       });
-    }
-    else{
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Failed to delete account"),
-        )
-      );
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Failed to delete account")));
     }
   }
-
 
   Widget _bottomButton({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
   }) {
-    return
-      Expanded(
+    return Expanded(
       child: InkWell(
         onTap: onTap,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: Colors.black.withOpacity(0.72),
-              size: 28,
-            ),
+            Icon(icon, color: Colors.black.withOpacity(0.72), size: 28),
             const SizedBox(height: 4),
             Text(
               label,
@@ -1097,7 +1128,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> delete(List<String> files) async {
     final token = await storage.read(key: "token");
     if (token == null) return;
-    for (final file in files){
+    for (final file in files) {
       await File(file).delete();
       http.post(
         Uri.parse('$baseUrl/delete-document'),
@@ -1110,57 +1141,55 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  PreferredSizeWidget _selectAppBar(String window){
+  PreferredSizeWidget _selectAppBar(String window) {
     return AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: "Deselect all",
-            onPressed: () async {
-            setState((){
-              _selectedIndexes.clear();
-              _isSelectedMode=false;
-            });
-            }
-        ),
-        title: Text("${_selectedIndexes.length} selected"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: "Share",
-            onPressed: () async{
-              
-              if(window=="Document"){
-                final filesToShare = _selectedIndexes
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        tooltip: "Deselect all",
+        onPressed: () async {
+          setState(() {
+            _selectedIndexes.clear();
+            _isSelectedMode = false;
+          });
+        },
+      ),
+      title: Text("${_selectedIndexes.length} selected"),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.share),
+          tooltip: "Share",
+          onPressed: () async {
+            if (window == "Document") {
+              final filesToShare = _selectedIndexes
                   .map((i) => XFile(_photos[i].path))
                   .toList();
-                await Share.shareXFiles(
-                  filesToShare,
-                  text: caption,
-                  subject: "Shared via DocEzy",
-                );
-              }
-              else{
-                final filesToShare = _selectedIndexes
+              await Share.shareXFiles(
+                filesToShare,
+                text: caption,
+                subject: "Shared via DocEzy",
+              );
+            } else {
+              final filesToShare = _selectedIndexes
                   .map((i) => XFile(_queryphotos[i].path))
                   .toList();
-                await Share.shareXFiles(
-                  filesToShare,
-                  text: caption,
-                  subject: "Shared via DocEzy",
-                );
-              }
-              setState((){
-                _selectedIndexes.clear();
-                _isSelectedMode=false;
-              });
+              await Share.shareXFiles(
+                filesToShare,
+                text: caption,
+                subject: "Shared via DocEzy",
+              );
             }
-          ),
+            setState(() {
+              _selectedIndexes.clear();
+              _isSelectedMode = false;
+            });
+          },
+        ),
 
-          IconButton(
-            icon: const Icon(Icons.delete),
-            tooltip: "Delete",
-            onPressed: () async{
-              final confirmed = await showDialog<bool>(
+        IconButton(
+          icon: const Icon(Icons.delete),
+          tooltip: "Delete",
+          onPressed: () async {
+            final confirmed = await showDialog<bool>(
               context: context,
               builder: (context) => AlertDialog(
                 title: const Text('Delete documents?'),
@@ -1179,32 +1208,36 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
               ),
             );
-            if(confirmed !=true){return;}
-            final pathsToDelete = _selectedIndexes
-                .map((i) => window == "Document" ? _photos[i].path : _queryphotos[i].path)
-                .toList();
-            await delete(pathsToDelete); 
-            if(window=="Document"){
-              _load();
+            if (confirmed != true) {
+              return;
             }
-            else{
+            final pathsToDelete = _selectedIndexes
+                .map(
+                  (i) => window == "Document"
+                      ? _photos[i].path
+                      : _queryphotos[i].path,
+                )
+                .toList();
+            await delete(pathsToDelete);
+            if (window == "Document") {
+              _load();
+            } else {
               _load();
               _queryDocument();
             }
-            setState((){
+            setState(() {
               _selectedIndexes.clear();
-              _isSelectedMode=false;
+              _isSelectedMode = false;
             });
-            }
-          )
-        ]
-      );
+          },
+        ),
+      ],
+    );
   }
-
 
   void _handleGridTap(List<File> files, int i, {required VoidCallback onOpen}) {
     if (!_isSelectedMode) {
-      onOpen();   // parent-specific: open fullscreen
+      onOpen(); // parent-specific: open fullscreen
     } else {
       if (_selectedIndexes.contains(i)) {
         setState(() {
@@ -1230,6 +1263,61 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 2,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _changeToQueryScreen,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Icon(Icons.search, color: Colors.grey.shade600, size: 24),
+
+                const SizedBox(width: 14),
+
+                Expanded(
+                  child: Text(
+                    "Search your documents",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () {
+                    _changeToQueryScreen();
+                    _startListening();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.mic_none_rounded,
+                      color: Colors.blue.shade700,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildRecentRow() {
     if (_photos.isEmpty) return const SizedBox.shrink();
 
@@ -1241,8 +1329,10 @@ class _MyHomePageState extends State<MyHomePage> {
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(12, 12, 12, 6),
-          child: Text('Recent',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          child: Text(
+            'Recent',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1279,8 +1369,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       cacheWidth: 200,
                       errorBuilder: (_, __, ___) => Container(
                         color: Colors.grey.shade200,
-                        child: const Icon(Icons.insert_drive_file,
-                            color: Colors.grey),
+                        child: const Icon(
+                          Icons.insert_drive_file,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                   ),
@@ -1307,8 +1399,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     children: [
                       Icon(Icons.more_horiz, size: 28, color: Colors.grey),
                       SizedBox(height: 4),
-                      Text('Show more',
-                          style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      Text(
+                        'Show more',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
                     ],
                   ),
                 ),
@@ -1320,195 +1414,142 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildWidgetPromo() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _promoAddWidget,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
+  Widget _buildDocument(BuildContext context) {
+    return Scaffold(
+      appBar: (!_isSelectedMode)
+          ? AppBar(
+              leading: IconButton(
+                icon: _profileimage == null
+                    ? const Icon(Icons.person)
+                    : CircleAvatar(
+                        radius: 16,
+                        backgroundImage: FileImage(_profileimage!),
+                      ),
+                tooltip: 'Your Profile',
+                onPressed: () async {
+                  final email = await storage.read(key: "email") ?? "";
+                  final action = await Navigator.push<ProfilePageAction>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProfilePage(userEmail: email),
+                    ),
+                  );
+
+                  await _loadProfileImage();
+
+                  if (action == ProfilePageAction.deleteaccount) {
+                    await _deleteaccount();
+                  } else if (action == ProfilePageAction.logout) {
+                    await _logout();
+                  }
+                },
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.favorite, size: 24, color: Colors.red),
+                  tooltip: "Open Your Favourites",
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FavouritesPage()),
+                    );
+                    await _load();
+                  },
+                ),
+
+                IconButton(
+                  icon: const Icon(Icons.folder, size: 24, color: Colors.black),
+                  tooltip: "Browser",
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BrowserPage()),
+                    );
+                    await _load();
+                  },
+                ),
+              ],
+            )
+          : _selectAppBar("Document"),
+
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSearchBar(),
+            if (!_isSelectedMode && _photos.isNotEmpty) _buildRecentRow(),
+            Expanded(
+              child: _photos.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.folder_open, size: 80, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            'No documents yet',
+                            style: TextStyle(fontSize: 18),
+                          ),
+                          Text(
+                            'Tap Scan or Gallery below to add your first document',
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.search, color: Colors.white, size: 28),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+        ),
+      ),
+
+      bottomNavigationBar: !_isSelectedMode
+          ? SafeArea(
+              top: false,
+              child: Container(
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 1,
+                      offset: const Offset(0, -1),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Text('Search from your home screen',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600)),
-                    SizedBox(height: 2),
-                    Text('Add the DocEzy search widget',
-                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    _bottomButton(
+                      icon: Icons.photo_library,
+                      label: "Gallery",
+                      onTap: _pickFromGallery,
+                    ),
+                    _bottomButton(
+                      icon: Icons.camera_alt,
+                      label: "Scan",
+                      onTap: _scanDocument,
+                    ),
+                    _bottomButton(
+                      icon: Icons.notes,
+                      label: "Notes",
+                      onTap: () {
+                        Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(builder: (_) => NotesPage()),
+                        );
+                      },
+                    ),
+                    _bottomButton(
+                      icon: Icons.upload_file,
+                      label: "Upload",
+                      onTap: _pickFromFile,
+                    ),
                   ],
                 ),
               ),
-              const Icon(Icons.add_circle, color: Colors.white, size: 26),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _promoAddWidget() async {
-    try {
-      final supported =
-          await methodChannel.invokeMethod<bool>('isPinWidgetSupported') ?? false;
-      if (!supported) {
-        _showError("Your device doesn't support adding widgets this way. "
-            "Long-press your home screen to add it manually.");
-        return;
-      }
-      await methodChannel.invokeMethod('requestPinWidget');
-    } catch (e) {
-      _showError("Couldn't add the widget.");
-    }
-  }
-
-  Widget _buildDocument(BuildContext context) {
-    return Scaffold(
-        appBar: (!_isSelectedMode) ? 
-        AppBar(
-          leading: IconButton(
-            icon: _profileimage == null
-                ? const Icon(Icons.person)
-                : CircleAvatar(
-                    radius: 16,
-                    backgroundImage: FileImage(_profileimage!),
-                  ),
-            tooltip: 'Your Profile',
-            onPressed: () async {
-              final email = await storage.read(key: "email") ?? "";
-              final action = await Navigator.push<ProfilePageAction>(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProfilePage(
-                    userEmail: email,
-                  ),
-                ),
-              );
-
-              await _loadProfileImage();
-
-              if (action == ProfilePageAction.deleteaccount) {
-                await _deleteaccount();
-              } else if (action == ProfilePageAction.logout) {
-                await _logout();
-              }
-            },
-          ),
-          actions: [
-            IconButton(
-              icon: const  Icon(Icons.favorite, size: 24, color: Colors.red),
-              tooltip: "Open Your Favourites",
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FavouritesPage()),
-                );
-                await _load();
-              },
-            ),
-
-            IconButton(
-              icon: const Icon(Icons.folder, size: 24, color: Colors.black),
-              tooltip:"Browser",
-              onPressed: () async{
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const BrowserPage()),
-                );
-                await _load();
-              },
-            ),
-          ],
-        )
-        :
-        _selectAppBar("Document"),
-        
-        body: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-
-              
-
-
-              if (!_isSelectedMode) _buildWidgetPromo(),
-              if (!_isSelectedMode && _photos.isNotEmpty) _buildRecentRow(),
-              Expanded(
-                child: _photos.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.folder_open, size: 80, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text('No documents yet', style: TextStyle(fontSize: 18)),
-                            Text('Tap Scan or Gallery below to add your first document'),
-                          ],
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
-        ),
-
-        bottomNavigationBar: !_isSelectedMode ? SafeArea(
-          top: false,
-          child: Container(
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 1,
-                  offset: const Offset(0, -1),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _bottomButton(
-                  icon: Icons.photo_library,
-                  label: "Gallery",
-                  onTap: _pickFromGallery,
-                ),
-                _bottomButton(
-                  icon: Icons.camera_alt,
-                  label: "Scan",
-                  onTap: _scanDocument,
-                ),
-                _bottomButton(
-                  icon: Icons.search,
-                  label: "Search",
-                  onTap: _changeToQueryScreen,
-                ),
-                _bottomButton(
-                  icon: Icons.upload_file,
-                  label: "Upload",
-                  onTap: _pickFromFile,
-                ),
-              ],
-            ),
-          ),
-        ): null,
+            )
+          : null,
     );
   }
 
@@ -1526,7 +1567,6 @@ class _MyHomePageState extends State<MyHomePage> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-
                   RadioListTile<DocumentTypeFilter>(
                     title: const Text("All"),
                     value: DocumentTypeFilter.all,
@@ -1563,7 +1603,6 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
 
               actions: [
-
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
@@ -1587,49 +1626,54 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildQueryScreen(BuildContext context) {
     return Scaffold(
-      appBar: (!_isSelectedMode)? AppBar(
-        title: const Text('Search Documents'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => setState(() => appstage = AppStage.document),
-        ),
-      ) : _selectAppBar("Query"),
+      appBar: (!_isSelectedMode)
+          ? AppBar(
+              title: const Text('Search Documents'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() => appstage = AppStage.document),
+              ),
+            )
+          : _selectAppBar("Query"),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
-              Expanded(
-                child: TextField(
-                  controller: _queryController,
-                  focusNode: _queryFocusNode,
-                  decoration: InputDecoration(
-                    hintText: _querytext,
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    suffixIcon: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () => _queryController.clear(),
-                        ),
-                        IconButton(
-                          icon: Icon(_islistening ? Icons.stop_circle : Icons.mic),
-                          tooltip: 'Speak',
-                          onPressed: _speechEnabled ? _pressmicbutton : null,
-                        ),
-                      ],
+                Expanded(
+                  child: TextField(
+                    controller: _queryController,
+                    focusNode: _queryFocusNode,
+                    decoration: InputDecoration(
+                      hintText: _querytext,
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () => _queryController.clear(),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              _islistening ? Icons.stop_circle : Icons.mic,
+                            ),
+                            tooltip: 'Speak',
+                            onPressed: _speechEnabled ? _pressmicbutton : null,
+                          ),
+                        ],
+                      ),
                     ),
+                    onSubmitted: (_) => _queryDocument(),
                   ),
-                  onSubmitted: (_) => _queryDocument(),
                 ),
-              ),
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-
                     IconButton(
                       icon: const Icon(Icons.tune_rounded),
                       onPressed: () async {
@@ -1668,7 +1712,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ),
                   ],
-                )
+                ),
               ],
             ),
           ),
@@ -1680,14 +1724,16 @@ class _MyHomePageState extends State<MyHomePage> {
                       children: [
                         Icon(Icons.search_off, size: 80, color: Colors.grey),
                         SizedBox(height: 16),
-                        Text('No results found', style: TextStyle(fontSize: 18)),
+                        Text(
+                          'No results found',
+                          style: TextStyle(fontSize: 18),
+                        ),
                       ],
                     ),
                   )
                 : Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: 
-                    DocumentGrid(
+                    child: DocumentGrid(
                       files: _queryphotos,
                       crossAxisCount: 2,
                       childAspectRatio: 0.72,
@@ -1695,11 +1741,17 @@ class _MyHomePageState extends State<MyHomePage> {
                       selectedIndexes: _selectedIndexes,
                       onLongPress: _handleGridLongPress,
                       onTap: (i) => _handleGridTap(
-                        _queryphotos, i,
+                        _queryphotos,
+                        i,
                         onOpen: () async {
                           final deleted = await Navigator.push<bool>(
                             context,
-                            MaterialPageRoute(builder: (_) => FullScreenImage(files: _queryphotos, startIndex: i)),
+                            MaterialPageRoute(
+                              builder: (_) => FullScreenImage(
+                                files: _queryphotos,
+                                startIndex: i,
+                              ),
+                            ),
                           );
                           if (deleted == true) {
                             await _load();
@@ -1707,7 +1759,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           }
                         },
                       ),
-                    )
+                    ),
                   ),
           ),
         ],
