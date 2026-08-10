@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../constants.dart';
 import 'package:http/http.dart' as http;
+import 'dart:math';
 
 class NotesPage extends StatefulWidget {
   const NotesPage({super.key});
@@ -24,29 +25,30 @@ class _NotesPageState extends State<NotesPage> {
     _controller = QuillController.basic();
   }
 
-  Future<File> _saveNote() async {
+  Future<void> _saveNote() async {
     final dir = await getApplicationDocumentsDirectory();
 
     final file = File(
       "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.json",
     );
 
-    final deltaJson = jsonEncode(_controller.document.toDelta().toJson());
-    await file.writeAsString(deltaJson);
-
+    final delta = _controller.document.toDelta().toJson();
     final plainText = _controller.document.toPlainText();
+    final preview = plainText.substring(0, min(150, plainText.length));
+
     final token = await storage.read(key: 'token');
 
+    final json = jsonEncode({"preview": preview, "delta": delta});
+    await file.writeAsString(json);
+
     await http.post(
-      Uri.parse("$baseUrl/upload-note"),
+      Uri.parse("$baseUrl/send-document"),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
       },
-      body: jsonEncode({"doc_path": file.path, "digest": plainText}),
+      body: jsonEncode({"doc_path": file.path, "text": plainText}),
     );
-
-    return file;
   }
 
   @override
@@ -107,7 +109,7 @@ class _NotesPageState extends State<NotesPage> {
           if (mounted) {
             ScaffoldMessenger.of(
               context,
-            ).showSnackBar(const SnackBar(content: Text("Note saved")));
+            ).showSnackBar(const SnackBar(content: Text("Saved")));
           }
         },
         tooltip: "Save",

@@ -7,6 +7,8 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import '../constants.dart'; // for baseUrl, storage
 import 'pdf_page.dart';
+import 'note_read_page.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 
 class FullScreenImage extends StatefulWidget {
   final List<File> files;
@@ -277,6 +279,15 @@ class _FullScreenImageState extends State<FullScreenImage> {
                     );
                   }
 
+                  if (file.path.endsWith('.json')) {
+                    return PhotoViewGalleryPageOptions.customChild(
+                      child: NoteReadPage(file: file),
+                      initialScale: PhotoViewComputedScale.contained,
+                      minScale: PhotoViewComputedScale.contained,
+                      maxScale: PhotoViewComputedScale.covered * 3,
+                    );
+                  }
+
                   return PhotoViewGalleryPageOptions(
                     imageProvider: FileImage(file),
                     minScale: PhotoViewComputedScale.contained,
@@ -345,11 +356,29 @@ class _FullScreenImageState extends State<FullScreenImage> {
                 // Share
                 Expanded(
                   child: InkWell(
-                    onTap: () => Share.shareXFiles(
-                      [XFile(widget.files[_currentindex].path)],
-                      subject: "Shared via DocEzy",
-                      text: caption,
-                    ),
+                    onTap: () async {
+                      final file = widget.files[_currentindex];
+
+                      if (file.path.endsWith('.json')) {
+                        final data = jsonDecode(await file.readAsString());
+                        final delta = data["delta"];
+
+                        final document = Document.fromJson(
+                          List<Map<String, dynamic>>.from(delta),
+                        );
+
+                        await Share.share(
+                          document.toPlainText(),
+                          subject: "Shared via DocEzy",
+                        );
+                      } else {
+                        await Share.shareXFiles(
+                          [XFile(file.path)],
+                          subject: "Shared via DocEzy",
+                          text: caption,
+                        );
+                      }
+                    },
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),

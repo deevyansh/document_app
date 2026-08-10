@@ -4,10 +4,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
-import '../constants.dart';                 // storage, baseUrl
-import '../widgets/document_grid.dart';      // reusable grid
+import '../constants.dart'; // storage, baseUrl
+import '../widgets/document_grid.dart'; // reusable grid
 import 'full_screen_image.dart';
 import 'dart:async';
+import 'package:flutter_quill/flutter_quill.dart';
 
 class FavouritesPage extends StatefulWidget {
   const FavouritesPage({super.key});
@@ -47,13 +48,15 @@ class _FavouritesPageState extends State<FavouritesPage> {
     }
 
     try {
-      final res = await http.post(
-        Uri.parse('$baseUrl/send-fav'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 30));
+      final res = await http
+          .post(
+            Uri.parse('$baseUrl/send-fav'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (res.statusCode != 200) {
         _showError("Couldn't load favourites.");
@@ -150,22 +153,62 @@ class _FavouritesPageState extends State<FavouritesPage> {
           icon: const Icon(Icons.share),
           tooltip: "Share",
           onPressed: () async {
-            final filesToShare=
-            _selectedIndexes.map((i) => XFile(_favphotos[i].path)).toList();
-            final hasPdf = filesToShare.any((f) => f.path.endsWith('.pdf'));
-            final hasImage = filesToShare.any(
-            (f) =>
-                f.path.endsWith('.jpg') ||
-                f.path.endsWith('.jpeg') ||
-                f.path.endsWith('.png'),
+            final selectedFiles = _selectedIndexes
+                .map((i) => _favphotos[i])
+                .toList();
+
+            final fileShares = <XFile>[];
+            final noteTexts = <String>[];
+
+            for (final file in selectedFiles) {
+              if (file.path.endsWith('.json')) {
+                final json = jsonDecode(await file.readAsString());
+                final document = Document.fromJson(
+                  List<Map<String, dynamic>>.from(json["delta"]),
+                );
+                noteTexts.add(document.toPlainText());
+              } else {
+                fileShares.add(XFile(file.path));
+              }
+            }
+
+            final hasPdf = fileShares.any((f) => f.path.endsWith('.pdf'));
+            final hasImage = fileShares.any(
+              (f) =>
+                  f.path.endsWith('.jpg') ||
+                  f.path.endsWith('.jpeg') ||
+                  f.path.endsWith('.png'),
             );
-            bool isMixed= hasPdf && hasImage;
-            final params = ShareParams(
-                text: isMixed ? null : caption,
-                files: filesToShare,
-                subject: "Shared via DocEzy",
-            );
-            await SharePlus.instance.share(params);
+
+            final isMixed = hasPdf && hasImage;
+
+            String? shareText;
+            if (noteTexts.isNotEmpty) {
+              shareText = noteTexts.join("\n\n--------------------\n\n");
+
+              if (fileShares.isEmpty) {
+                // Only notes selected
+                shareText = shareText;
+              } else {
+                // Notes + files selected
+                shareText = "$shareText\n\n$caption";
+              }
+            } else {
+              shareText = isMixed ? null : caption;
+            }
+
+            if (fileShares.isEmpty) {
+              await Share.share(shareText!, subject: "Shared via DocEzy");
+            } else {
+              await SharePlus.instance.share(
+                ShareParams(
+                  files: fileShares,
+                  text: shareText,
+                  subject: "Shared via DocEzy",
+                ),
+              );
+            }
+
             setState(() {
               _selectedIndexes.clear();
               _isSelectedMode = false;
@@ -184,26 +227,26 @@ class _FavouritesPageState extends State<FavouritesPage> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _favphotos.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.favorite_border, size: 80, color: Colors.red),
-                        SizedBox(height: 16),
-                        Text('No favourites yet', style: TextStyle(fontSize: 18)),
-                        Text('Mark documents as favourite to see them here'),
-                      ],
-                    ),
-                  )
-                : DocumentGrid(
-                    files: _favphotos,
-                    crossAxisCount: 3,
-                    childAspectRatio: 0.75,
-                    isSelectionMode: _isSelectedMode,
-                    selectedIndexes: _selectedIndexes,
-                    onTap: _handleTap,
-                    onLongPress: _handleLongPress,
-                  ),
+            ? const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.favorite_border, size: 80, color: Colors.red),
+                    SizedBox(height: 16),
+                    Text('No favourites yet', style: TextStyle(fontSize: 18)),
+                    Text('Mark documents as favourite to see them here'),
+                  ],
+                ),
+              )
+            : DocumentGrid(
+                files: _favphotos,
+                crossAxisCount: 3,
+                childAspectRatio: 0.75,
+                isSelectionMode: _isSelectedMode,
+                selectedIndexes: _selectedIndexes,
+                onTap: _handleTap,
+                onLongPress: _handleLongPress,
+              ),
       ),
     );
   }

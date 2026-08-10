@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'dart:convert';
 
 class DocumentGrid extends StatelessWidget {
   final List<File> files;
@@ -25,7 +26,6 @@ class DocumentGrid extends StatelessWidget {
     this.childAspectRatio = 0.75,
   });
 
-  /// NEW: renders a single document thumbnail.
   static Widget buildTile({
     required File file,
     required bool isSelectionMode,
@@ -34,6 +34,7 @@ class DocumentGrid extends StatelessWidget {
     required VoidCallback onLongPress,
   }) {
     final isPdf = file.path.endsWith('.pdf');
+    final isNote = file.path.endsWith('.json');
 
     return GestureDetector(
       onTap: onTap,
@@ -49,10 +50,50 @@ class DocumentGrid extends StatelessWidget {
                       fit: BoxFit.cover,
                       cacheWidth: 500,
                     )
-                  : Image.file(
-                      file,
-                      fit: BoxFit.cover,
-                      cacheWidth: 500,
+                  : (!isNote)
+                  ? Image.file(file, fit: BoxFit.cover, cacheWidth: 500)
+                  : FutureBuilder<String>(
+                      future: file.readAsString(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState != ConnectionState.done) {
+                          return const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          );
+                        }
+
+                        if (snapshot.hasError || !snapshot.hasData) {
+                          return const Center(
+                            child: Icon(Icons.notes_outlined, size: 48),
+                          );
+                        }
+
+                        final json = jsonDecode(snapshot.data!);
+                        final preview = json["preview"] ?? "";
+
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.notes_outlined, size: 28),
+                                const SizedBox(height: 8),
+                                Text(
+                                  preview,
+                                  maxLines: 5,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
             ),
           ),
@@ -72,11 +113,7 @@ class DocumentGrid extends StatelessWidget {
               child: CircleAvatar(
                 radius: 12,
                 backgroundColor: Colors.blue,
-                child: Icon(
-                  Icons.check,
-                  size: 16,
-                  color: Colors.white,
-                ),
+                child: Icon(Icons.check, size: 16, color: Colors.white),
               ),
             ),
           ],

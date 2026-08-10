@@ -215,7 +215,7 @@ class _MyHomePageState extends State<MyHomePage> {
       if (name.endsWith('.pdf')) return true;
       if (name.endsWith('profile.jpg')) return false;
       if (name.endsWith('.thumb.jpg')) return false;
-      if (name.endsWith('json')) return true;
+      if (name.endsWith('.json')) return true;
       return name.endsWith('.jpg') || name.endsWith('.png');
     }).toList();
 
@@ -1169,14 +1169,59 @@ class _MyHomePageState extends State<MyHomePage> {
                 subject: "Shared via DocEzy",
               );
             } else {
-              final filesToShare = _selectedIndexes
-                  .map((i) => XFile(_queryphotos[i].path))
+              final selectedFiles = _selectedIndexes
+                  .map((i) => _queryphotos[i])
                   .toList();
-              await Share.shareXFiles(
-                filesToShare,
-                text: caption,
-                subject: "Shared via DocEzy",
+
+              final fileShares = <XFile>[];
+              final noteTexts = <String>[];
+
+              for (final file in selectedFiles) {
+                if (file.path.endsWith('.json')) {
+                  final json = jsonDecode(await file.readAsString());
+
+                  final document = Document.fromJson(
+                    List<Map<String, dynamic>>.from(json["delta"]),
+                  );
+
+                  noteTexts.add(document.toPlainText());
+                } else {
+                  fileShares.add(XFile(file.path));
+                }
+              }
+
+              final hasPdf = fileShares.any((f) => f.path.endsWith('.pdf'));
+              final hasImage = fileShares.any(
+                (f) =>
+                    f.path.endsWith('.jpg') ||
+                    f.path.endsWith('.jpeg') ||
+                    f.path.endsWith('.png'),
               );
+
+              final isMixed = hasPdf && hasImage;
+
+              String? shareText;
+              if (noteTexts.isNotEmpty) {
+                shareText = noteTexts.join("\n\n--------------------\n\n");
+
+                if (fileShares.isNotEmpty && !isMixed) {
+                  shareText = "$shareText\n\n$caption";
+                }
+              } else {
+                shareText = isMixed ? null : caption;
+              }
+
+              if (fileShares.isEmpty) {
+                await Share.share(shareText!, subject: "Shared via DocEzy");
+              } else {
+                await SharePlus.instance.share(
+                  ShareParams(
+                    files: fileShares,
+                    text: shareText,
+                    subject: "Shared via DocEzy",
+                  ),
+                );
+              }
             }
             setState(() {
               _selectedIndexes.clear();
@@ -1347,7 +1392,11 @@ class _MyHomePageState extends State<MyHomePage> {
               // ── recent file tiles ──────────────────────────────
               ...recent.map((file) {
                 final isPdf = file.path.endsWith('.pdf');
+                final isNote = file.path.endsWith(
+                  '.json',
+                ); // or your note extension
                 final realIndex = _photos.indexOf(file);
+
                 return GestureDetector(
                   onTap: () async {
                     final deleted = await Navigator.push<bool>(
@@ -1363,18 +1412,92 @@ class _MyHomePageState extends State<MyHomePage> {
                   },
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.file(
-                      isPdf ? File('${file.path}.thumb.jpg') : file,
-                      fit: BoxFit.cover,
-                      cacheWidth: 200,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: Colors.grey.shade200,
-                        child: const Icon(
-                          Icons.insert_drive_file,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
+                    child: isPdf
+                        ? Image.file(
+                            File('${file.path}.thumb.jpg'),
+                            fit: BoxFit.cover,
+                            cacheWidth: 200,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.grey.shade200,
+                              child: const Icon(
+                                Icons.insert_drive_file,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          )
+                        : !isNote
+                        ? Image.file(
+                            file,
+                            fit: BoxFit.cover,
+                            cacheWidth: 200,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.grey.shade200,
+                              child: const Icon(
+                                Icons.insert_drive_file,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          )
+                        : FutureBuilder<String>(
+                            future: file.readAsString(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState !=
+                                  ConnectionState.done) {
+                                return const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                );
+                              }
+
+                              if (snapshot.hasError || !snapshot.hasData) {
+                                return Container(
+                                  color: Colors.grey.shade100,
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.notes_outlined,
+                                      size: 36,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              final json = jsonDecode(snapshot.data!);
+                              final preview = json["preview"] ?? "";
+
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                    width: 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.notes_outlined,
+                                      size: 22,
+                                      color: Colors.black54,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Expanded(
+                                      child: Text(
+                                        preview,
+                                        maxLines: 6,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                   ),
                 );
               }),
@@ -1390,18 +1513,18 @@ class _MyHomePageState extends State<MyHomePage> {
                 },
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.more_horiz, size: 28, color: Colors.grey),
+                      Icon(Icons.more_horiz, size: 28, color: Colors.black87),
                       SizedBox(height: 4),
                       Text(
                         'Show more',
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                        style: TextStyle(fontSize: 11, color: Colors.black87),
                       ),
                     ],
                   ),
