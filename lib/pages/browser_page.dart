@@ -298,7 +298,7 @@ class _BrowserPageState extends State<BrowserPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.favorite_border, size: 80, color: Colors.red),
+                    Icon(Icons.folder, size: 80),
                     SizedBox(height: 16),
                     Text('No Documents yet', style: TextStyle(fontSize: 18)),
                   ],

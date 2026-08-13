@@ -1,4 +1,4 @@
-package com.example.document_app
+package com.deevyansh.docezy
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider

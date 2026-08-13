@@ -911,11 +911,7 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.lock_outline,
-                size: 80,
-                color: Colors.deepPurple,
-              ),
+              const Icon(Icons.lock_outline, size: 80, color: Colors.blue),
               const SizedBox(height: 24),
               const Text(
                 'Verify OTP',
@@ -947,7 +943,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Colors.deepPurple,
+                      color: Colors.blue,
                     ),
                   ),
                 ),
@@ -1503,33 +1499,34 @@ class _MyHomePageState extends State<MyHomePage> {
               }),
 
               // ── "Show more" tile (8th slot) → opens browser ─────
-              GestureDetector(
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const BrowserPage()),
-                  );
-                  await _load();
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.more_horiz, size: 28, color: Colors.black87),
-                      SizedBox(height: 4),
-                      Text(
-                        'Show more',
-                        style: TextStyle(fontSize: 11, color: Colors.black87),
-                      ),
-                    ],
+              if (_photos.length > 7)
+                GestureDetector(
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BrowserPage()),
+                    );
+                    await _load();
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.more_horiz, size: 28, color: Colors.black87),
+                        SizedBox(height: 4),
+                        Text(
+                          'Show more',
+                          style: TextStyle(fontSize: 11, color: Colors.black87),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -1644,25 +1641,29 @@ class _MyHomePageState extends State<MyHomePage> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _bottomButton(
-                      icon: Icons.photo_library,
-                      label: "Gallery",
-                      onTap: _pickFromGallery,
+                      icon: Icons.notes,
+                      label: "Notes",
+                      onTap: () async {
+                        await Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NotesPage()),
+                        );
+                        await _load();
+                      },
                     ),
+
                     _bottomButton(
                       icon: Icons.camera_alt,
                       label: "Scan",
                       onTap: _scanDocument,
                     ),
+
                     _bottomButton(
-                      icon: Icons.notes,
-                      label: "Notes",
-                      onTap: () {
-                        Navigator.push<bool>(
-                          context,
-                          MaterialPageRoute(builder: (_) => NotesPage()),
-                        );
-                      },
+                      icon: Icons.photo_library,
+                      label: "Gallery",
+                      onTap: _pickFromGallery,
                     ),
+
                     _bottomButton(
                       icon: Icons.upload_file,
                       label: "Upload",
