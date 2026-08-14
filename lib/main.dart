@@ -21,7 +21,6 @@ import 'package:pdfx/pdfx.dart' as pdfx;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 import 'package:flutter/material.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter/services.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:async';
@@ -36,6 +35,7 @@ import 'widgets/document_grid.dart';
 import 'pages/favourite_page.dart';
 import 'pages/browser_page.dart';
 import 'pages/notes_page.dart';
+import 'pages/search_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -77,14 +77,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  bool _isSearching=false;
-  bool _hasSearched=false;
   final PageController _sliderController = PageController();
   Timer? _sliderTimer;
-
   int _currentSlide = 0;
-
-
   final List<String> _sliderImages = [
     'assets/slides/slide1.png',
     'assets/slides/slide2.png',
@@ -94,6 +89,7 @@ class _MyHomePageState extends State<MyHomePage> {
     'assets/slides/slide6.png',
   ];
 
+  bool _appAlreadyRunning = false;
   final List<TextEditingController> _otpControllers = List.generate(
     6,
     (_) => TextEditingController(),
@@ -101,39 +97,19 @@ class _MyHomePageState extends State<MyHomePage> {
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
   String get _otpCode => _otpControllers.map((c) => c.text).join();
   List<File> _photos = [];
-  List<File> _queryphotos = [];
   final _picker = ImagePicker();
   final _recognizer = TextRecognizer(script: TextRecognitionScript.devanagiri);
   AppStage appstage = AppStage.enterEmail;
   final _emailController = TextEditingController();
   bool _openedFromShare = false;
   String? _otpError;
-  final _queryController = TextEditingController();
   StreamSubscription? _intentSub;
-  final _enToHi = OnDeviceTranslator(
-    sourceLanguage: TranslateLanguage.english,
-    targetLanguage: TranslateLanguage.hindi,
-  );
-  final _hiToEn = OnDeviceTranslator(
-    sourceLanguage: TranslateLanguage.hindi,
-    targetLanguage: TranslateLanguage.english,
-  );
-  final _modelManager = OnDeviceTranslatorModelManager();
-  DocumentTypeFilter _typefilter = DocumentTypeFilter.all;
-  final FocusNode _queryFocusNode = FocusNode();
-  final SpeechToText _speech = SpeechToText();
-  String _querytext = "What are you looking for";
-  bool _islistening = false;
   File? _profileimage;
-
   int _importdone = 0;
   int _importtotal = 0;
   Timer? _otpTimer;
   int _otpSecondsRemaining = 300; // 5 minutes
   bool _canResendOtp = false;
-
-  bool _isSelectedMode = false;
-  Set<int> _selectedIndexes = {};
   final ScrollController _gridController = ScrollController();
 
   void _showError(String message) {
@@ -210,17 +186,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> _ensureHindiModel() async {
-    final downloaded = await _modelManager.isModelDownloaded(
-      TranslateLanguage.hindi.bcpCode,
-    );
-    if (!downloaded) {
-      await _modelManager.downloadModel(
-        TranslateLanguage.hindi.bcpCode,
-        isWifiRequired: false, // let it use mobile data too
-      );
-    }
-  }
+  
 
   Future<void> _load() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -319,15 +285,10 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
     _initialize();
-    _ensureHindiModel();
-    _initSpeech();
+    
   }
 
-  Future<bool> _hindiReady() async {
-    return await _modelManager.isModelDownloaded(
-      TranslateLanguage.hindi.bcpCode,
-    );
-  }
+  
 
   void _setupWidgetChannel() {
     methodChannel.setMethodCallHandler((call) async {
@@ -338,10 +299,7 @@ class _MyHomePageState extends State<MyHomePage> {
           _changeToQueryScreen();
         } else if (action == "voice_search") {
           Navigator.of(context).popUntil((route) => route.isFirst);  
-          _changeToQueryScreen();
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _startListening();
-          });
+          _changeToQueryScreen(startListening: true);
         }
         else if(action == "camera"){
           Navigator.of(context).popUntil((route) => route.isFirst);  
@@ -365,6 +323,7 @@ class _MyHomePageState extends State<MyHomePage> {
         _importdone++;
       });
     }
+    await _load();
 
     if (_openedFromShare) {
       SystemNavigator.pop();
@@ -374,11 +333,13 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _initialize() async {
     _setupWidgetChannel();
 
-    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((value) {
+    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((value) async {
       if (value.isNotEmpty) {
         if (!mounted) return;
-        setState(() => _openedFromShare = true);
-        _handleShared(value);
+        if (!_appAlreadyRunning) {
+          setState(() => _openedFromShare = true);
+        }
+        await _handleShared(value);
       }
     });
 
@@ -387,7 +348,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (value.isNotEmpty) {
       if (!mounted) return;
       setState(() => _openedFromShare = true);
-      _handleShared(value);
+      await _handleShared(value);
       return;
     }
 
@@ -403,10 +364,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _changeToQueryScreen();
     } else if (action == "voice_search") {
       Navigator.of(context).popUntil((route) => route.isFirst);
-      _changeToQueryScreen();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _startListening();
-      });
+      _changeToQueryScreen(startListening: true);
     }
     else if(action == "camera"){
       Navigator.of(context).popUntil((route) => route.isFirst);
@@ -414,6 +372,8 @@ class _MyHomePageState extends State<MyHomePage> {
         _scanDocument();
       });
     }
+
+    _appAlreadyRunning = true;
   }
 
   @override
@@ -427,14 +387,9 @@ class _MyHomePageState extends State<MyHomePage> {
     _sliderTimer?.cancel();
     _sliderController.dispose();
     _otpTimer?.cancel();
-    _enToHi.close();
-    _hiToEn.close();
     _recognizer.close();
     _emailController.dispose();
-    _queryController.dispose();
     _intentSub?.cancel();
-    _queryFocusNode.dispose();
-    _speech.cancel();
     super.dispose();
   }
 
@@ -461,15 +416,6 @@ class _MyHomePageState extends State<MyHomePage> {
         bytes[3] == 0x47)
       return 'png';
     return 'unknown';
-  }
-
-  Future<void> _loadqueryphotos(List<dynamic> results) async {
-    final files = results
-        .map((r) => File(r['doc_path'] as String))
-        .where((f) => f.existsSync())
-        .toList();
-    if (!mounted) return;
-    setState(() => _queryphotos = files.take(5).toList()); // Limit to max 5
   }
 
   Future<void> _makePdfThumb(String pdfPath) async {
@@ -500,81 +446,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<String?> _transliterateToHindi(String text) async {
-    if (text.trim().isEmpty) return null;
-    try {
-      final uri = Uri.parse(
-        'https://inputtools.google.com/request'
-        '?text=${Uri.encodeComponent(text)}'
-        '&itc=hi-t-i0-und'
-        '&num=1&cp=0&cs=1&ie=utf-8&oe=utf-8',
-      );
-      final res = await http.get(uri).timeout(const Duration(seconds: 3));
-      if (res.statusCode != 200) return null;
-
-      final data = jsonDecode(res.body);
-      // Response shape: ["SUCCESS",[["transport",["ट्रांसपोर्ट","ट्रान्सपोर्ट"]]]]
-      if (data[0] == "SUCCESS") {
-        final suggestions = data[1][0][1] as List;
-        if (suggestions.isNotEmpty) return suggestions.first as String;
-      }
-    } catch (e) {
-      print("transliteration failed: $e");
-    }
-    return null;
-  }
-
-  Future<void> _queryDocument() async {
-    setState((){
-      _isSearching=true;
-    });
-    final sw = Stopwatch()..start();
-    final token = await storage.read(key: 'token');
-    if (token == null) return;
-    final raw = _queryController.text.trim();
-    final terms = <String>{raw};
-
-    if (await _hindiReady()) {
-      final results = await Future.wait([
-        _enToHi.translateText(raw),
-        _hiToEn.translateText(raw),
-      ]);
-      terms.addAll(results);
-    }
-
-    // translit is removed because the sometimes the translit = translate and this is causing the problem a bit high
-    // final translit = await _transliterateToHindi(raw);
-    // if (translit != null) {
-    //   print("translit $translit");
-    //   terms.add(translit);
-    // }
-
-    final combined = terms.join(' ');
-
-    String? x;
-    if (_typefilter == DocumentTypeFilter.all) {
-      x = "all";
-    } else if (_typefilter == DocumentTypeFilter.pdf) {
-      x = "pdf";
-    } else {
-      x = "img";
-    }
-    final res = await _safePost(
-      "/search-document",
-      {'user_query': combined, 'type_filter': x},
-      extraHeaders: {'Authorization': 'Bearer $token'},
-    );
-    if (res == null) {
-      return;
-    }
-    final data = jsonDecode(res.body);
-    await _loadqueryphotos(data["results"]);
-    setState((){
-      _isSearching=false;
-      _hasSearched=true;
-    });
-  }
-
+  
   Future<String> _extractPdfocrText(String path) async {
     final doc = await pdfx.PdfDocument.openFile(path);
     final page = await doc.getPage(1);
@@ -804,37 +676,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     await scanner.close();
   }
-
-  Future<void> _startListening() async {
-    setState(() {
-      _querytext = "Listening..";
-      _islistening = true;
-    });
-
-    try {
-      final String? spokenText = await methodChannel.invokeMethod<String>(
-        'startSpeechRecognition',
-      );
-
-      if (spokenText != null && spokenText.trim().isNotEmpty) {
-        _queryController.text = spokenText;
-        await _queryDocument();
-      }
-    } on PlatformException catch (e) {
-      _showError("Voice search unavailable: ${e.message}");
-    } finally {
-      if (mounted) {
-        setState(() {
-          _querytext = "What are you looking for";
-          _islistening = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _pressmicbutton() async {
-    await _startListening();
-  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -872,11 +714,9 @@ class _MyHomePageState extends State<MyHomePage> {
       return _buildEmailScreen(context);
     } else if (appstage == AppStage.enterOtp) {
       return _buildOtpScreen(context);
-    } else if (appstage == AppStage.document) {
-      return _buildDocument(context);
     } else {
-      return _buildQueryScreen(context);
-    }
+      return _buildDocument(context);
+    } 
   }
 
   Widget _buildEmailScreen(BuildContext context) {
@@ -1086,23 +926,14 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void _changeToQueryScreen() {
-    setState(() {
-      _typefilter = DocumentTypeFilter.all;
-      appstage = AppStage.QueryScreen;
-      _queryphotos.clear();
-      _queryController.clear();
-      _isSelectedMode = false;
-      _selectedIndexes.clear();
-      _isSearching= false;
-      _hasSearched=false;
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _queryFocusNode.requestFocus();
-      }
-    });
+  void _changeToQueryScreen({bool startListening = false}) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SearchPage(autoStartListening: startListening),
+      ),
+    );
+    await _load(); // refresh in case docs were deleted/shared from search page
   }
 
   Future<void> _logout() async {
@@ -1189,172 +1020,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  PreferredSizeWidget _selectAppBar(String window) {
-    return AppBar(
-      leading: IconButton(
-        icon: const Icon(Icons.close),
-        tooltip: "Deselect all",
-        onPressed: () async {
-          setState(() {
-            _selectedIndexes.clear();
-            _isSelectedMode = false;
-          });
-        },
-      ),
-      title: Text("${_selectedIndexes.length} selected"),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.share),
-          tooltip: "Share",
-          onPressed: () async {
-            if (window == "Document") {
-              final filesToShare = _selectedIndexes
-                  .map((i) => XFile(_photos[i].path))
-                  .toList();
-              await Share.shareXFiles(
-                filesToShare,
-                text: caption,
-                subject: "Shared via DocEzy",
-              );
-            } else {
-              final selectedFiles = _selectedIndexes
-                  .map((i) => _queryphotos[i])
-                  .toList();
 
-              final fileShares = <XFile>[];
-              final noteTexts = <String>[];
-
-              for (final file in selectedFiles) {
-                if (file.path.endsWith('.json')) {
-                  final json = jsonDecode(await file.readAsString());
-
-                  final document = Document.fromJson(
-                    List<Map<String, dynamic>>.from(json["delta"]),
-                  );
-
-                  noteTexts.add(document.toPlainText());
-                } else {
-                  fileShares.add(XFile(file.path));
-                }
-              }
-
-              final hasPdf = fileShares.any((f) => f.path.endsWith('.pdf'));
-              final hasImage = fileShares.any(
-                (f) =>
-                    f.path.endsWith('.jpg') ||
-                    f.path.endsWith('.jpeg') ||
-                    f.path.endsWith('.png'),
-              );
-
-              final isMixed = hasPdf && hasImage;
-
-              String? shareText;
-              if (noteTexts.isNotEmpty) {
-                shareText = noteTexts.join("\n\n--------------------\n\n");
-
-                if (fileShares.isNotEmpty && !isMixed) {
-                  shareText = "$shareText\n\n$caption";
-                }
-              } else {
-                shareText = isMixed ? null : caption;
-              }
-
-              if (fileShares.isEmpty) {
-                await Share.share(shareText!, subject: "Shared via DocEzy");
-              } else {
-                await SharePlus.instance.share(
-                  ShareParams(
-                    files: fileShares,
-                    text: shareText,
-                    subject: "Shared via DocEzy",
-                  ),
-                );
-              }
-            }
-            setState(() {
-              _selectedIndexes.clear();
-              _isSelectedMode = false;
-            });
-          },
-        ),
-
-        IconButton(
-          icon: const Icon(Icons.delete),
-          tooltip: "Delete",
-          onPressed: () async {
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Delete documents?'),
-                content: Text(
-                  'Delete ${_selectedIndexes.length} document(s)? This cannot be undone.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text('Delete'),
-                  ),
-                ],
-              ),
-            );
-            if (confirmed != true) {
-              return;
-            }
-            final pathsToDelete = _selectedIndexes
-                .map(
-                  (i) => window == "Document"
-                      ? _photos[i].path
-                      : _queryphotos[i].path,
-                )
-                .toList();
-            await delete(pathsToDelete);
-            if (window == "Document") {
-              _load();
-            } else {
-              _load();
-              _queryDocument();
-            }
-            setState(() {
-              _selectedIndexes.clear();
-              _isSelectedMode = false;
-            });
-          },
-        ),
-      ],
-    );
-  }
-
-  void _handleGridTap(List<File> files, int i, {required VoidCallback onOpen}) {
-    if (!_isSelectedMode) {
-      onOpen(); // parent-specific: open fullscreen
-    } else {
-      if (_selectedIndexes.contains(i)) {
-        setState(() {
-          _selectedIndexes.remove(i);
-          if (_selectedIndexes.isEmpty) _isSelectedMode = false;
-        });
-      } else {
-        if (_selectedIndexes.length >= 5) {
-          _showError("You cannot share more than 5 at once");
-        } else {
-          setState(() => _selectedIndexes.add(i));
-        }
-      }
-    }
-  }
-
-  void _handleGridLongPress(int i) {
-    if (!_isSelectedMode) {
-      setState(() {
-        _isSelectedMode = true;
-        _selectedIndexes.add(i);
-      });
-    }
-  }
 
   Widget _buildSearchBar() {
     return Padding(
@@ -1387,8 +1053,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 InkWell(
                   borderRadius: BorderRadius.circular(20),
                   onTap: () {
-                    _changeToQueryScreen();
-                    _startListening();
+                    _changeToQueryScreen(startListening: true);
                   },
                   child: Container(
                     padding: const EdgeInsets.all(8),
@@ -1652,8 +1317,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildDocument(BuildContext context) {
     return Scaffold(
-      appBar: (!_isSelectedMode)
-          ? AppBar(
+      appBar:AppBar(
               leading: IconButton(
                 icon: _profileimage == null
                     ? const Icon(Icons.person)
@@ -1705,15 +1369,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   },
                 ),
               ],
-            )
-          : _selectAppBar("Document"),
+            ),
 
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSearchBar(),
-            if (!_isSelectedMode && _photos.isNotEmpty) _buildRecentRow(),
+            if (_photos.isNotEmpty) _buildRecentRow(),
             const SizedBox(height: 30),
             _buildPromoSlider(),
             Expanded(
@@ -1723,8 +1386,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
 
-      bottomNavigationBar: !_isSelectedMode
-          ? SafeArea(
+      bottomNavigationBar: SafeArea(
               top: false,
               child: Container(
                 height: 80,
@@ -1773,240 +1435,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-            )
-          : null,
-    );
-  }
-
-  Future<DocumentTypeFilter?> _filterSelection() async {
-    DocumentTypeFilter selected = _typefilter;
-
-    return await showDialog<DocumentTypeFilter>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text("Filter Documents"),
-
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  RadioListTile<DocumentTypeFilter>(
-                    title: const Text("All"),
-                    value: DocumentTypeFilter.all,
-                    groupValue: selected,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        selected = value!;
-                      });
-                    },
-                  ),
-
-                  RadioListTile<DocumentTypeFilter>(
-                    title: const Text("Images"),
-                    value: DocumentTypeFilter.image,
-                    groupValue: selected,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        selected = value!;
-                      });
-                    },
-                  ),
-
-                  RadioListTile<DocumentTypeFilter>(
-                    title: const Text("PDFs"),
-                    value: DocumentTypeFilter.pdf,
-                    groupValue: selected,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        selected = value!;
-                      });
-                    },
-                  ),
-                ],
-              ),
-
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text("Cancel"),
-                ),
-
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context, selected);
-                  },
-                  child: const Text("Apply"),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildQueryScreen(BuildContext context) {
-    return Scaffold(
-      appBar: (!_isSelectedMode)
-          ? AppBar(
-              title: const Text('Search Documents'),
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => appstage = AppStage.document),
-              ),
-            )
-          : _selectAppBar("Query"),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _queryController,
-                    focusNode: _queryFocusNode,
-                    decoration: InputDecoration(
-                      hintText: _querytext,
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      suffixIcon: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () => _queryController.clear(),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              _islistening ? Icons.stop_circle : Icons.mic,
-                            ),
-                            tooltip: 'Speak',
-                            onPressed: _speechEnabled ? _pressmicbutton : null,
-                          ),
-                        ],
-                      ),
-                    ),
-                    onSubmitted: (_) => _queryDocument(),
-                  ),
-                ),
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.tune_rounded),
-                      onPressed: () async {
-                        final res = await _filterSelection();
-
-                        if (res != null) {
-                          setState(() {
-                            _typefilter = res;
-                          });
-
-                          await _queryDocument();
-                        }
-                      },
-                    ),
-
-                    if (_typefilter != DocumentTypeFilter.all)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: const Text(
-                            "1",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
             ),
-          ),
-          Expanded(
-            child: _isSearching
-                ? const Center(child: CircularProgressIndicator())
-                : !_hasSearched
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.search, size: 80, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text(
-                              'Search your documents',
-                              style: TextStyle(fontSize: 18),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Type a keyword or tap the mic to search by voice',
-                              style: TextStyle(fontSize: 13, color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      )
-                    : _queryphotos.isEmpty
-                        ? const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.search_off, size: 80, color: Colors.grey),
-                                SizedBox(height: 16),
-                                Text('No results found', style: TextStyle(fontSize: 18)),
-                              ],
-                            ),
-                          )
-                        : Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: DocumentGrid(
-                              files: _queryphotos,
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.72,
-                              isSelectionMode: _isSelectedMode,
-                              selectedIndexes: _selectedIndexes,
-                              onLongPress: _handleGridLongPress,
-                              onTap: (i) => _handleGridTap(
-                                _queryphotos,
-                                i,
-                                onOpen: () async {
-                                  final deleted = await Navigator.push<bool>(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => FullScreenImage(
-                                        files: _queryphotos,
-                                        startIndex: i,
-                                      ),
-                                    ),
-                                  );
-                                  if (deleted == true) {
-                                    await _load();
-                                    await _queryDocument();
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-          ),
-        ],
-      ),
     );
   }
+
+  
+
 }

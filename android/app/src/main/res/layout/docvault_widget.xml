@@ -15,7 +15,7 @@
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="10dp"
-        android:paddingEnd="6dp">
+        android:paddingEnd="10dp">
 
         <!-- Logo + hint -->
         <LinearLayout
@@ -53,6 +53,7 @@
             android:id="@+id/mic_icon"
             android:layout_width="44dp"
             android:layout_height="40dp"
+            android:layout_marginStart="7dp"
             android:padding="6dp"
             android:src="@android:drawable/ic_btn_speak_now"
             android:tint="#202124"
