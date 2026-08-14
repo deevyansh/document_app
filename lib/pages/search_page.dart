@@ -33,6 +33,10 @@ class _SearchPageState extends State<SearchPage> {
     bool _islistening = false;
     String _querytext = "What are you looking for";
     List<File> _queryphotos = [];
+    List<File> _querylimitphotos=[];
+
+    bool _loadMore=false;
+
     final FocusNode _queryFocusNode = FocusNode();
     final _enToHi = OnDeviceTranslator(
         sourceLanguage: TranslateLanguage.english,
@@ -182,7 +186,10 @@ class _SearchPageState extends State<SearchPage> {
             .where((f) => f.existsSync())
             .toList();
         if (!mounted) return;
-        setState(() => _queryphotos = files.take(5).toList()); // Limit to max 5
+        setState((){
+            _queryphotos = files.toList();
+            _querylimitphotos=files.take(5).toList();
+        }); // Limit to max 5
     }
 
     Future<String?> _transliterateToHindi(String text) async {
@@ -209,9 +216,18 @@ class _SearchPageState extends State<SearchPage> {
         return null;
     }
 
+    void _toggleLoadMore() {
+        setState(() {
+            _loadMore = !_loadMore;
+            _selectedIndexes.clear();
+            _isSelectedMode = false;
+        });
+    }
+
     Future<void> _queryDocument() async {
         setState((){
-        _isSearching=true;
+            _isSearching=true;
+            _loadMore=false;
         });
         final sw = Stopwatch()..start();
         final token = await storage.read(key: 'token');
@@ -238,25 +254,25 @@ class _SearchPageState extends State<SearchPage> {
 
         String? x;
         if (_typefilter == DocumentTypeFilter.all) {
-        x = "all";
+            x = "all";
         } else if (_typefilter == DocumentTypeFilter.pdf) {
-        x = "pdf";
+            x = "pdf";
         } else {
-        x = "img";
+            x = "img";
         }
         final res = await _safePost(
-        "/search-document",
-        {'user_query': combined, 'type_filter': x},
-        extraHeaders: {'Authorization': 'Bearer $token'},
+            "/search-document",
+            {'user_query': combined, 'type_filter': x},
+            extraHeaders: {'Authorization': 'Bearer $token'},
         );
         if (res == null) {
-        return;
+            return;
         }
         final data = jsonDecode(res.body);
-        await _loadqueryphotos(data["results"]);
+            await _loadqueryphotos(data["results"]);
         setState((){
-        _isSearching=false;
-        _hasSearched=true;
+            _isSearching=false;
+            _hasSearched=true;
         });
     }
 
@@ -310,7 +326,7 @@ class _SearchPageState extends State<SearchPage> {
             tooltip: "Share",
             onPressed: () async {
                 final selectedFiles = _selectedIndexes
-                    .map((i) => _queryphotos[i])
+                    .map((i) => _loadMore ? _queryphotos[i]: _querylimitphotos[i])
                     .toList();
 
                 final fileShares = <XFile>[];
@@ -397,7 +413,7 @@ class _SearchPageState extends State<SearchPage> {
                 }
                 final pathsToDelete = _selectedIndexes
                     .map(
-                    (i) =>  _queryphotos[i].path,
+                    (i) =>  _loadMore ? _queryphotos[i].path: _querylimitphotos[i].path,
                     )
                     .toList();
                 await delete(pathsToDelete);
@@ -551,33 +567,51 @@ class _SearchPageState extends State<SearchPage> {
                             )
                             : Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                child: DocumentGrid(
-                                files: _queryphotos,
-                                crossAxisCount: 2,
-                                childAspectRatio: 0.72,
-                                isSelectionMode: _isSelectedMode,
-                                selectedIndexes: _selectedIndexes,
-                                onLongPress: _handleGridLongPress,
-                                onTap: (i) => _handleGridTap(
-                                    _queryphotos,
-                                    i,
-                                    onOpen: () async {
-                                    final deleted = await Navigator.push<bool>(
-                                        context,
-                                        MaterialPageRoute(
-                                        builder: (_) => FullScreenImage(
-                                            files: _queryphotos,
-                                            startIndex: i,
+                                child: Column(
+                                children: [
+                                    Expanded(
+                                    child: DocumentGrid(
+                                        files: _loadMore ? _queryphotos : _querylimitphotos,
+                                        crossAxisCount: 2,
+                                        childAspectRatio: 0.72,
+                                        isSelectionMode: _isSelectedMode,
+                                        selectedIndexes: _selectedIndexes,
+                                        onLongPress: _handleGridLongPress,
+                                        onTap: (i) => _handleGridTap(
+                                        _loadMore ? _queryphotos : _querylimitphotos,
+                                        i,
+                                        onOpen: () async {
+                                            final deleted = await Navigator.push<bool>(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (_) => FullScreenImage(
+                                                files: _loadMore ? _queryphotos : _querylimitphotos,
+                                                startIndex: i,
+                                                ),
+                                            ),
+                                            );
+                                            if (deleted == true) {
+                                            await _queryDocument();
+                                            }
+                                        },
+                                        ),
+                                    ),
+                                    ),
+                                    if (!_loadMore && _queryphotos.length > 5)
+                                    Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 12.0),
+                                        child: TextButton(
+                                        onPressed: _toggleLoadMore,
+                                        child: Text(
+                                            "Load more (${_queryphotos.length - 5} more)",
+                                            style: const TextStyle(fontWeight: FontWeight.w600),
                                         ),
                                         ),
-                                    );
-                                    if (deleted == true) {
-                                        await _queryDocument();
-                                    }
-                                    },
-                                ),
+                                    ),
+                                ],
                                 ),
                             ),
+                            
             ),
             ],
         ),
