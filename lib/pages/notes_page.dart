@@ -23,6 +23,12 @@ class _NotesPageState extends State<NotesPage> {
   void initState() {
     super.initState();
     _controller = QuillController.basic();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      _editorFocusNode.requestFocus();
+    });
   }
 
   Future<void> _saveNote() async {

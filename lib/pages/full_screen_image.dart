@@ -27,6 +27,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
   Set<String> _favfiles = {};
   late int _currentindex;
   late final PageController _pageController;
+  final FocusNode _labelFocusNode = FocusNode();
 
   // ── Dynamic Gesture Lock State ──────────────────────────────────────────────
   final Set<int> _activePointers = {};
@@ -66,7 +67,9 @@ class _FullScreenImageState extends State<FullScreenImage> {
   @override
   void dispose() {
     _pageController.dispose();
+    _labelFocusNode.dispose();
     super.dispose();
+
   }
 
   // ── Pointer Handlers to Lock/Unlock Swiping ────────────────────────────────
@@ -189,7 +192,13 @@ class _FullScreenImageState extends State<FullScreenImage> {
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context){
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            _labelFocusNode.requestFocus();
+          }
+        });
+        return AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           "Label As",
@@ -199,6 +208,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
           width: 420,
           child: TextField(
             controller: _contextcontroller,
+            focusNode: _labelFocusNode,
             maxLines: 3,
             minLines: 2,
             maxLength: 150,
@@ -223,7 +233,8 @@ class _FullScreenImageState extends State<FullScreenImage> {
             label: const Text("Save"),
           ),
         ],
-      ),
+      );
+      },
     );
 
     if (saved == true) {

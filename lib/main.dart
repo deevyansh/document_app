@@ -1092,6 +1092,7 @@ class _MyHomePageState extends State<MyHomePage> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ),
+        const SizedBox(height: 5),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: GridView.count(
@@ -1377,7 +1378,7 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             _buildSearchBar(),
             if (_photos.isNotEmpty) _buildRecentRow(),
-            const SizedBox(height: 30),
+            const SizedBox(height: 35),
             _buildPromoSlider(),
             Expanded(
               child:const SizedBox.shrink(),
