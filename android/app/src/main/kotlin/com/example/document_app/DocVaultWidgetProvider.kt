@@ -29,8 +29,18 @@ class DocVaultWidgetProvider : AppWidgetProvider() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val cameraIntent = Intent(context, MainActivity::class.java).apply{
+            putExtra("action", "camera")
+        }
+
+        val cameraPendingIntent = PendingIntent.getActivity(
+            context, 2, cameraIntent, 
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         views.setOnClickPendingIntent(R.id.search_container, searchPendingIntent)
         views.setOnClickPendingIntent(R.id.mic_icon, voicePendingIntent)
+        views.setOnClickPendingIntent(R.id.camera_icon, cameraPendingIntent)
 
         return views
     }

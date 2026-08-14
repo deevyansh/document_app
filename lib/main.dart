@@ -77,6 +77,23 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  bool _isSearching=false;
+  bool _hasSearched=false;
+  final PageController _sliderController = PageController();
+  Timer? _sliderTimer;
+
+  int _currentSlide = 0;
+
+
+  final List<String> _sliderImages = [
+    'assets/slides/slide1.png',
+    'assets/slides/slide2.png',
+    'assets/slides/slide3.png',
+    'assets/slides/slide4.png',
+    'assets/slides/slide5.png',
+    'assets/slides/slide6.png',
+  ];
+
   final List<TextEditingController> _otpControllers = List.generate(
     6,
     (_) => TextEditingController(),
@@ -89,7 +106,6 @@ class _MyHomePageState extends State<MyHomePage> {
   final _recognizer = TextRecognizer(script: TextRecognitionScript.devanagiri);
   AppStage appstage = AppStage.enterEmail;
   final _emailController = TextEditingController();
-  final _otpController = TextEditingController();
   bool _openedFromShare = false;
   String? _otpError;
   final _queryController = TextEditingController();
@@ -268,6 +284,10 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _startOtpTimer();
       appstage = AppStage.enterOtp;
+      for (final c in _otpControllers){
+        c.clear();
+      }
+      _otpFocusNodes[0].requestFocus();
     });
   }
 
@@ -283,6 +303,21 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    _sliderTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) {
+        if (!_sliderController.hasClients) return;
+
+        _currentSlide =
+            (_currentSlide + 1) % _sliderImages.length;
+
+        _sliderController.animateToPage(
+          _currentSlide,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOut,
+        );
+      },
+    );
     _initialize();
     _ensureHindiModel();
     _initSpeech();
@@ -299,11 +334,19 @@ class _MyHomePageState extends State<MyHomePage> {
       if (call.method == "onWidgetLaunch") {
         final String action = call.arguments as String;
         if (action == "search") {
+          Navigator.of(context).popUntil((route) => route.isFirst);  
           _changeToQueryScreen();
         } else if (action == "voice_search") {
+          Navigator.of(context).popUntil((route) => route.isFirst);  
           _changeToQueryScreen();
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _startListening();
+          });
+        }
+        else if(action == "camera"){
+          Navigator.of(context).popUntil((route) => route.isFirst);  
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scanDocument();
           });
         }
       }
@@ -365,6 +408,12 @@ class _MyHomePageState extends State<MyHomePage> {
         _startListening();
       });
     }
+    else if(action == "camera"){
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scanDocument();
+      });
+    }
   }
 
   @override
@@ -375,6 +424,8 @@ class _MyHomePageState extends State<MyHomePage> {
     for (final f in _otpFocusNodes) {
       f.dispose();
     }
+    _sliderTimer?.cancel();
+    _sliderController.dispose();
     _otpTimer?.cancel();
     _enToHi.close();
     _hiToEn.close();
@@ -474,6 +525,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _queryDocument() async {
+    setState((){
+      _isSearching=true;
+    });
     final sw = Stopwatch()..start();
     final token = await storage.read(key: 'token');
     if (token == null) return;
@@ -515,6 +569,10 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     final data = jsonDecode(res.body);
     await _loadqueryphotos(data["results"]);
+    setState((){
+      _isSearching=false;
+      _hasSearched=true;
+    });
   }
 
   Future<String> _extractPdfocrText(String path) async {
@@ -562,7 +620,6 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<String> _extractText(String path) async {
     final input = InputImage.fromFilePath(path);
     final result = await _recognizer.processImage(input);
-    print(result.text);
     return result.text;
   }
 
@@ -748,49 +805,35 @@ class _MyHomePageState extends State<MyHomePage> {
     await scanner.close();
   }
 
-  Future<void> _initSpeech() async {
-    bool available = await _speech.initialize();
-
-    setState(() {
-      _speechEnabled = available;
-    });
-  }
-
-  bool _speechEnabled = false;
-
   Future<void> _startListening() async {
     setState(() {
       _querytext = "Listening..";
       _islistening = true;
-      _queryController.clear();
     });
-    await _speech.listen(
-      onResult: (result) {
-        setState(() {
-          _queryController.text = result.recognizedWords;
-        });
-        if (result.finalResult) {
-          _stopListening();
-        }
-      },
-    );
-  }
 
-  Future<void> _stopListening() async {
-    await _speech.stop();
-    setState(() {
-      _querytext = "What are you looking for";
-      _islistening = false;
-    });
-    await _queryDocument();
+    try {
+      final String? spokenText = await methodChannel.invokeMethod<String>(
+        'startSpeechRecognition',
+      );
+
+      if (spokenText != null && spokenText.trim().isNotEmpty) {
+        _queryController.text = spokenText;
+        await _queryDocument();
+      }
+    } on PlatformException catch (e) {
+      _showError("Voice search unavailable: ${e.message}");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _querytext = "What are you looking for";
+          _islistening = false;
+        });
+      }
+    }
   }
 
   Future<void> _pressmicbutton() async {
-    if (_islistening) {
-      await _stopListening();
-    } else {
-      await _startListening();
-    }
+    await _startListening();
   }
 
   @override
@@ -869,6 +912,11 @@ class _MyHomePageState extends State<MyHomePage> {
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                inputFormatters: [
+                  TextInputFormatter.withFunction((oldValue, newValue) {
+                    return newValue.copyWith(text: newValue.text.toLowerCase());
+                  }),
+                ],
                 decoration: InputDecoration(
                   labelText: 'Email Address',
                   hintText: 'you@example.com',
@@ -1046,6 +1094,8 @@ class _MyHomePageState extends State<MyHomePage> {
       _queryController.clear();
       _isSelectedMode = false;
       _selectedIndexes.clear();
+      _isSearching= false;
+      _hasSearched=false;
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1060,6 +1110,7 @@ class _MyHomePageState extends State<MyHomePage> {
     await storage.delete(key: 'email');
     setState(() {
       appstage = AppStage.enterEmail;
+      _emailController.clear();
     });
   }
 
@@ -1086,6 +1137,7 @@ class _MyHomePageState extends State<MyHomePage> {
       await storage.delete(key: 'token');
       setState(() {
         appstage = AppStage.enterEmail;
+      
       });
     } else {
       ScaffoldMessenger.of(
@@ -1363,7 +1415,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (_photos.isEmpty) return const SizedBox.shrink();
 
     // 7 recent files + 1 "show more" tile = 8 slots (2×4)
-    final recent = _photos.take(7).toList();
+    final recent = _photos.take(3).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1499,7 +1551,7 @@ class _MyHomePageState extends State<MyHomePage> {
               }),
 
               // ── "Show more" tile (8th slot) → opens browser ─────
-              if (_photos.length > 7)
+              if (_photos.length >= 4)
                 GestureDetector(
                   onTap: () async {
                     await Navigator.push(
@@ -1530,6 +1582,70 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildPromoSlider() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: MediaQuery.of(context).size.width * 0.93,
+          height: MediaQuery.of(context).size.width * 0.93,
+          child: PageView.builder(
+            controller: _sliderController,
+            itemCount: _sliderImages.length,
+
+            onPageChanged: (index) {
+              setState(() {
+                _currentSlide = index;
+              });
+            },
+
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.asset(
+                    _sliderImages[index],
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            _sliderImages.length,
+            (index) {
+              final isActive = index == _currentSlide;
+
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: isActive ? 20 : 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? Colors.blue
+                      : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 8),
       ],
     );
   }
@@ -1598,25 +1714,10 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             _buildSearchBar(),
             if (!_isSelectedMode && _photos.isNotEmpty) _buildRecentRow(),
+            const SizedBox(height: 30),
+            _buildPromoSlider(),
             Expanded(
-              child: _photos.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.folder_open, size: 80, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
-                            'No documents yet',
-                            style: TextStyle(fontSize: 18),
-                          ),
-                          Text(
-                            'Tap Scan or Gallery below to add your first document',
-                          ),
-                        ],
-                      ),
-                    )
-                  : const SizedBox.shrink(),
+              child:const SizedBox.shrink(),
             ),
           ],
         ),
@@ -1841,50 +1942,68 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
           Expanded(
-            child: _queryphotos.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off, size: 80, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'No results found',
-                          style: TextStyle(fontSize: 18),
+            child: _isSearching
+                ? const Center(child: CircularProgressIndicator())
+                : !_hasSearched
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.search, size: 80, color: Colors.grey),
+                            SizedBox(height: 16),
+                            Text(
+                              'Search your documents',
+                              style: TextStyle(fontSize: 18),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Type a keyword or tap the mic to search by voice',
+                              style: TextStyle(fontSize: 13, color: Colors.grey),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: DocumentGrid(
-                      files: _queryphotos,
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.72,
-                      isSelectionMode: _isSelectedMode,
-                      selectedIndexes: _selectedIndexes,
-                      onLongPress: _handleGridLongPress,
-                      onTap: (i) => _handleGridTap(
-                        _queryphotos,
-                        i,
-                        onOpen: () async {
-                          final deleted = await Navigator.push<bool>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => FullScreenImage(
-                                files: _queryphotos,
-                                startIndex: i,
+                      )
+                    : _queryphotos.isEmpty
+                        ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.search_off, size: 80, color: Colors.grey),
+                                SizedBox(height: 16),
+                                Text('No results found', style: TextStyle(fontSize: 18)),
+                              ],
+                            ),
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                            child: DocumentGrid(
+                              files: _queryphotos,
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.72,
+                              isSelectionMode: _isSelectedMode,
+                              selectedIndexes: _selectedIndexes,
+                              onLongPress: _handleGridLongPress,
+                              onTap: (i) => _handleGridTap(
+                                _queryphotos,
+                                i,
+                                onOpen: () async {
+                                  final deleted = await Navigator.push<bool>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => FullScreenImage(
+                                        files: _queryphotos,
+                                        startIndex: i,
+                                      ),
+                                    ),
+                                  );
+                                  if (deleted == true) {
+                                    await _load();
+                                    await _queryDocument();
+                                  }
+                                },
                               ),
                             ),
-                          );
-                          if (deleted == true) {
-                            await _load();
-                            await _queryDocument();
-                          }
-                        },
-                      ),
-                    ),
-                  ),
+                          ),
           ),
         ],
       ),
