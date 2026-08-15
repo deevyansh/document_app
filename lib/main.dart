@@ -27,6 +27,7 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:in_app_update/in_app_update.dart';
 
 import 'constants.dart';
 import 'pages/profile_page.dart';
@@ -663,40 +664,353 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+
+
   Future<void> _scanDocument() async {
+    final mode = await _showScanModePicker();
+    if (mode == null) return;
+
+    switch (mode) {
+      case ScanMode.images:
+        await _scanImages();
+        break;
+      case ScanMode.pdf:
+        await _scanPdf();
+        break;
+      case ScanMode.idCard:
+        await _scanIdCard();
+        break;
+    }
+  }
+
+  Future<ScanMode?> _showScanModePicker() async {
+    return showModalBottomSheet<ScanMode>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _scanModeTile(
+                  context,
+                  icon: Icons.photo_library_outlined,
+                  title: "Images",
+                  subtitle: "Save each page as its own image",
+                  mode: ScanMode.images,
+                  accent: const Color(0xFF3B82F6),
+                ),
+                const SizedBox(height: 12),
+                _scanModeTile(
+                  context,
+                  icon: Icons.picture_as_pdf_outlined,
+                  title: "PDF",
+                  subtitle: "Combine all pages into one PDF",
+                  mode: ScanMode.pdf,
+                  accent: const Color(0xFFEF4444),
+                ),
+                const SizedBox(height: 12),
+                _scanModeTile(
+                  context,
+                  icon: Icons.badge_outlined,
+                  title: "ID Card",
+                  subtitle: "Front & back on a single page",
+                  mode: ScanMode.idCard,
+                  accent: const Color(0xFF14B8A6),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _scanModeTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required ScanMode mode,
+    required Color accent,
+  }) {
+    return Material(
+      color: Colors.white,
+      elevation: 4,
+      shadowColor: Colors.black.withValues(alpha: 0.18),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.pop(context, mode),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.15),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, size: 28, color: accent),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey.shade400),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  Future<void> _scanImages() async {
     if (!await _hasInternet()) {
       _showError("No internet connection.");
       return;
     }
     final scanner = DocumentScanner(
       options: DocumentScannerOptions(
-        documentFormats: const {DocumentFormat.jpeg, DocumentFormat.pdf},
+        documentFormats: const {DocumentFormat.jpeg},
         mode: ScannerMode.base,
-        pageLimit: 5,
+        pageLimit: 10,
         isGalleryImport: true,
       ),
     );
-
     final result = await scanner.scanDocument();
     final images = result.images;
-    if (images == null || images.isEmpty) return;
-    if (images.length == 1) {
-      await _importFromPath(result.images!.first);
-    } else {
-      final dir = await getApplicationDocumentsDirectory();
-      final dest = p.join(
-        dir.path,
-        '${DateTime.now().millisecondsSinceEpoch}.pdf',
-      );
-      await _buildPdfFromImages(images, dest);
-      await _makePdfThumb(dest);
-      await _load();
-      final text = await _extractPdfText(dest);
-      await _storeEmbedding(dest, text);
-    }
     await scanner.close();
+    if (images == null || images.isEmpty) return;
+
+    for (final img in images) {
+      await _importFromPath(img);   // each page becomes its own document
+    }
   }
-  
+
+  Future<void> _scanPdf() async {
+    if (!await _hasInternet()) {
+      _showError("No internet connection.");
+      return;
+    }
+    final scanner = DocumentScanner(
+      options: DocumentScannerOptions(
+        documentFormats: const {DocumentFormat.jpeg},
+        mode: ScannerMode.base,
+        pageLimit: 10,
+        isGalleryImport: true,
+      ),
+    );
+    final result = await scanner.scanDocument();
+    final images = result.images;
+    await scanner.close();
+    if (images == null || images.isEmpty) return;
+
+    final dir = await getApplicationDocumentsDirectory();
+    final dest = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}.pdf');
+    await _buildPdfFromImages(images, dest);   // your existing function, unchanged
+    await _makePdfThumb(dest);
+    await _load();
+    final text = await _extractPdfText(dest);
+    await _storeEmbedding(dest, text);
+  }
+
+
+  Future<void> _scanIdCard() async {
+    if (!await _hasInternet()) {
+      _showError("No internet connection.");
+      return;
+    }
+
+    // ── Front ──
+    final frontScanner = DocumentScanner(
+      options: DocumentScannerOptions(
+        documentFormats: const {DocumentFormat.jpeg},
+        mode: ScannerMode.base,
+        pageLimit: 1,
+        isGalleryImport: true,
+      ),
+    );
+    final frontResult = await frontScanner.scanDocument();
+    await frontScanner.close();
+    final frontImages = frontResult.images;
+    if (frontImages == null || frontImages.isEmpty) return;
+    final frontPath = frontImages.first;
+
+    // ── Back (optional, with skip) ──
+    final wantsBack = await _confirmScanBack();
+    String? backPath;
+    if (wantsBack) {
+      final backScanner = DocumentScanner(
+        options: DocumentScannerOptions(
+          documentFormats: const {DocumentFormat.jpeg},
+          mode: ScannerMode.base,
+          pageLimit: 1,
+          isGalleryImport: true,
+        ),
+      );
+      final backResult = await backScanner.scanDocument();
+      await backScanner.close();
+      final backImages = backResult.images;
+      if (backImages != null && backImages.isNotEmpty) {
+        backPath = backImages.first;
+      }
+    }
+
+    final dir = await getApplicationDocumentsDirectory();
+    final dest = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}.pdf');
+    await _buildIdCardPdf(frontPath, backPath, dest);
+    await _makePdfThumb(dest);
+    await _load();
+    final text = await _extractPdfText(dest);
+    await _storeEmbedding(dest, text);
+  }
+
+  Future<String> _buildIdCardPdf(
+    String frontPath,
+    String? backPath,
+    String dest,
+  ) async {
+    final doc = sf.PdfDocument();
+    doc.pageSettings.size = sf.PdfPageSize.a4;
+    doc.pageSettings.margins.all = 20;
+    final page = doc.pages.add();
+    final pageSize = page.getClientSize();
+
+    final frontImage = sf.PdfBitmap(await File(frontPath).readAsBytes());
+
+    const topGap = 50.0;
+    const middleGap = 200.0;
+    const bottomGap = 50.0;
+
+    // Fixed height every ID image box will use, regardless of source resolution.
+    const fixedImageHeight = 210.0;
+
+    final maxAllowedWidth = pageSize.width * 0.75;
+
+    void drawInBox(
+      sf.PdfBitmap img,
+      double boxTop,
+      double boxWidth,
+      double boxHeight,
+    ) {
+      // Fit the image inside the box (preserving its own aspect ratio),
+      // then center it within that fixed-size box.
+      final widthScale = boxWidth / img.width;
+      final heightScale = boxHeight / img.height;
+      final scale = widthScale < heightScale ? widthScale : heightScale;
+
+      final drawW = img.width * scale;
+      final drawH = img.height * scale;
+      final x = (pageSize.width - drawW) / 2;
+      final y = boxTop + (boxHeight - drawH) / 2;
+
+      page.graphics.drawImage(img, Rect.fromLTWH(x, y, drawW, drawH));
+    }
+
+    if (backPath == null) {
+      // Single image: box width = its natural width at fixedImageHeight,
+      // capped at 75% of the page.
+      final naturalWidth =
+          (frontImage.width / frontImage.height) * fixedImageHeight;
+      final boxWidth =
+          naturalWidth < maxAllowedWidth ? naturalWidth : maxAllowedWidth;
+
+      drawInBox(frontImage, topGap, boxWidth, fixedImageHeight);
+    } else {
+      final backImage = sf.PdfBitmap(await File(backPath).readAsBytes());
+
+      // Each image's natural width at the fixed height.
+      final frontNaturalWidth =
+          (frontImage.width / frontImage.height) * fixedImageHeight;
+      final backNaturalWidth =
+          (backImage.width / backImage.height) * fixedImageHeight;
+
+      // Shared width for BOTH images: the larger of the two natural widths
+      // (so neither gets unnecessarily shrunk below its own natural size),
+      // but never exceeding 75% of the page width.
+      var commonWidth = frontNaturalWidth > backNaturalWidth
+          ? frontNaturalWidth
+          : backNaturalWidth;
+      if (commonWidth > maxAllowedWidth) {
+        commonWidth = maxAllowedWidth;
+      }
+
+      final frontTop = topGap;
+      final backTop = topGap + fixedImageHeight + middleGap;
+
+      drawInBox(frontImage, frontTop, commonWidth, fixedImageHeight);
+      drawInBox(backImage, backTop, commonWidth, fixedImageHeight);
+    }
+
+    await File(dest).writeAsBytes(await doc.save());
+    doc.dispose();
+    return dest;
+  }
+
+  Future<bool> _confirmScanBack() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Scan the back?"),
+        content: const Text("Add the back side of the card to the same document?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Skip"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Scan back"),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
 
   @override
   Widget build(BuildContext context) {

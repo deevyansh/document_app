@@ -9,6 +9,7 @@ enum AppStage { enterEmail, enterOtp, document, QueryScreen }
 enum ProfilePageAction { deleteaccount, logout }
 
 enum DocumentTypeFilter { all, image, pdf }
+enum ScanMode { images, pdf, idCard }
 
 const caption = '''
 This document is smartly shared from 𝐃𝐨𝐜𝐄𝐳𝐲.

@@ -18,7 +18,7 @@ class _PdfPageState extends State<PdfPage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 400), () {
+    Future.delayed(const Duration(milliseconds: 200), () {
       if (!mounted) return;
       setState(() {
         _controller = pdfx.PdfControllerPinch(
