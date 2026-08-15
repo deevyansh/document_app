@@ -307,8 +307,23 @@ class _MyHomePageState extends State<MyHomePage> {
             _scanDocument();
           });
         }
+        else if(action == "notes"){
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _openNotes();
+          });
+        }
       }
     });
+  }
+
+  Future<void> _openNotes() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const NotesPage(),
+      ),
+    );
+    await _load();
   }
 
   Future<void> _handleShared(List<SharedMediaFile> files) async {
@@ -372,7 +387,12 @@ class _MyHomePageState extends State<MyHomePage> {
         _scanDocument();
       });
     }
-
+    else if(action == "notes"){
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openNotes();
+      });
+    }
     _appAlreadyRunning = true;
   }
 

@@ -25,7 +25,7 @@ class SearchPage extends StatefulWidget {
   State<SearchPage> createState() => _SearchPageState();
 }
 
-class _SearchPageState extends State<SearchPage> {
+class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
     bool _isSearching=false;
     bool _hasSearched=false;
     bool _isSelectedMode = false;
@@ -34,6 +34,8 @@ class _SearchPageState extends State<SearchPage> {
     String _querytext = "What are you looking for";
     List<File> _queryphotos = [];
     List<File> _querylimitphotos=[];
+    int _focusAttempts = 0;
+    bool _focusAchieved = false;
 
     bool _loadMore=false;
 
@@ -73,14 +75,44 @@ class _SearchPageState extends State<SearchPage> {
     }
 
     @override
-    void initState(){
+    void initState() {
         super.initState();
+        WidgetsBinding.instance.addObserver(this);
         _ensureHindiModel();
         WidgetsBinding.instance.addPostFrameCallback((_) {
-            _queryFocusNode.requestFocus();
-            if (widget.autoStartListening) {
-            _startListening();
-            }
+        _attemptFocus();
+        });
+    }
+
+    @override
+    void didChangeAppLifecycleState(AppLifecycleState state) {
+        if (state == AppLifecycleState.resumed && !_focusAchieved) {
+        _attemptFocus();
+        }
+    }
+
+    void _attemptFocus() {
+        if (!mounted || _focusAchieved) return;
+
+        _queryFocusNode.requestFocus();
+
+        if (widget.autoStartListening && _focusAttempts == 0) {
+        _startListening();
+        }
+
+        _focusAttempts++;
+
+        // Check shortly after whether it actually stuck; if not, retry with backoff.
+        Future.delayed(const Duration(milliseconds: 150), () {
+        if (!mounted) return;
+        if (_queryFocusNode.hasFocus) {
+            _focusAchieved = true;
+            return;
+        }
+        if (_focusAttempts < 5) {
+            _attemptFocus();   // try again — covers cases where the window
+                                // still hadn't regained system focus yet
+        }
         });
     }
 
@@ -243,12 +275,12 @@ class _SearchPageState extends State<SearchPage> {
         terms.addAll(results);
         }
 
-        // translit is removed because the sometimes the translit = translate and this is causing the problem a bit high
-        // final translit = await _transliterateToHindi(raw);
-        // if (translit != null) {
-        //   print("translit $translit");
-        //   terms.add(translit);
-        // }
+        final translit = await _transliterateToHindi(raw);
+        if (translit != null) {
+            if(!terms.contains(translit)){
+                terms.add(translit);
+            }
+        }
 
         final combined = terms.join(' ');
 

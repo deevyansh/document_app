@@ -38,9 +38,19 @@ class DocVaultWidgetProvider : AppWidgetProvider() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val notesIntent= Intent(context, MainActivity::class.java).apply{
+            putExtra("action", "notes")
+        }
+
+        val notesPendingIntent= PendingIntent.getActivity(
+            context, 3, notesIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         views.setOnClickPendingIntent(R.id.search_container, searchPendingIntent)
         views.setOnClickPendingIntent(R.id.mic_icon, voicePendingIntent)
         views.setOnClickPendingIntent(R.id.camera_icon, cameraPendingIntent)
+        views.setOnClickPendingIntent(R.id.notes_icon, notesPendingIntent)
 
         return views
     }

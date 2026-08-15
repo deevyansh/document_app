@@ -39,11 +39,24 @@
         <ImageView
             android:id="@+id/camera_icon"
             android:layout_width="44dp"
-            android:layout_height="46dp"
+            android:layout_height="40dp"
             android:padding="6dp"
+            android:layout_marginStart="7dp"
             android:src="@drawable/linked_camera_24"
             android:tint="#202124"
             android:contentDescription="Scan document"
+            android:background="?android:attr/selectableItemBackgroundBorderless" />
+
+        <!-- Notes button -->
+        <ImageView
+            android:id="@+id/notes_icon"
+            android:layout_width="44dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="7dp"
+            android:padding="6dp"
+            android:src="@drawable/notes_24px"
+            android:tint="#202124"
+            android:contentDescription="Notes"
             android:background="?android:attr/selectableItemBackgroundBorderless" />
 
         <!-- Mic button -->
@@ -51,7 +64,7 @@
             android:id="@+id/mic_icon"
             android:layout_width="44dp"
             android:layout_height="40dp"
-            android:layout_marginStart="7dp"
+            android:layout_marginStart="6dp"
             android:padding="6dp"
             android:src="@android:drawable/ic_btn_speak_now"
             android:tint="#202124"
