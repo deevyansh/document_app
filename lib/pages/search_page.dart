@@ -76,12 +76,12 @@ class _SearchPageState extends State<SearchPage> {
     void initState(){
         super.initState();
         _ensureHindiModel();
-        if (widget.autoStartListening) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _startListening();
-            });
-        }
-        _queryFocusNode.requestFocus();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+            _queryFocusNode.requestFocus();
+            if (widget.autoStartListening) {
+            _startListening();
+            }
+        });
     }
 
 
@@ -451,12 +451,13 @@ class _SearchPageState extends State<SearchPage> {
                 ),
                 )
             : _selectAppBar("Query"),
-        body: Column(
-            children: [
-            Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
+        body: SafeArea(
+            child: Column(
                 children: [
+                Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                    children: [
                     Expanded(
                     child: TextField(
                         controller: _queryController,
@@ -597,6 +598,7 @@ class _SearchPageState extends State<SearchPage> {
                                         ),
                                     ),
                                     ),
+
                                     if (!_loadMore && _queryphotos.length > 5)
                                     Padding(
                                         padding: const EdgeInsets.symmetric(vertical: 12.0),
@@ -614,6 +616,7 @@ class _SearchPageState extends State<SearchPage> {
                             
             ),
             ],
+        ),
         ),
         );
     }

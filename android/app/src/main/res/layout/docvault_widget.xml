@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:paddingStart="3dp"
-    android:paddingEnd="3dp">
+    android:layout_height="match_parent">
 
     <LinearLayout
         android:id="@+id/widget_root"
         android:layout_width="match_parent"
-        android:layout_height="54dp"
+        android:layout_height="50dp"
         android:layout_gravity="center_vertical"
         android:background="@drawable/widget_background"
         android:elevation="2dp"
@@ -28,7 +26,7 @@
 
             <ImageView
                 android:layout_width="44dp"
-                android:layout_height="40dp"
+                android:layout_height="46dp"
                 android:src="@drawable/logo4"
                 android:scaleType="fitCenter"
                 android:adjustViewBounds="true"
@@ -41,7 +39,7 @@
         <ImageView
             android:id="@+id/camera_icon"
             android:layout_width="44dp"
-            android:layout_height="40dp"
+            android:layout_height="46dp"
             android:padding="6dp"
             android:src="@drawable/linked_camera_24"
             android:tint="#202124"
