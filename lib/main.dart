@@ -169,6 +169,22 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> _checkForUpdate() async {
+    try {
+      final info = await InAppUpdate.checkForUpdate();
+
+      if (info.updateAvailability == UpdateAvailability.updateAvailable) {
+        if (info.immediateUpdateAllowed) {
+          await InAppUpdate.performImmediateUpdate();
+        } else if (info.flexibleUpdateAllowed) {
+          await InAppUpdate.startFlexibleUpdate();
+        }
+      }
+    } catch (e) {
+      print("Update check failed: $e");
+    }
+  }
+
   Future<void> _loadProfileImage() async {
     final dir = await getApplicationDocumentsDirectory();
     final files = dir
@@ -371,6 +387,7 @@ class _MyHomePageState extends State<MyHomePage> {
     await _load();
     await _checktoken();
     await _loadProfileImage();
+    await _checkForUpdate(); 
 
     final String? action = await methodChannel.invokeMethod<String>(
       "getLaunchAction",
