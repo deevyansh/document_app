@@ -52,10 +52,14 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
     final _modelManager = OnDeviceTranslatorModelManager();
     DocumentTypeFilter _typefilter = DocumentTypeFilter.all;
 
-    Future<bool> _hindiReady() async {
-        return await _modelManager.isModelDownloaded(
-        TranslateLanguage.hindi.bcpCode,
+    Future<bool> _translationModelsReady() async {
+        final hindiReady = await _modelManager.isModelDownloaded(
+            TranslateLanguage.hindi.bcpCode,
         );
+        final englishReady = await _modelManager.isModelDownloaded(
+            TranslateLanguage.english.bcpCode,
+        );
+        return hindiReady && englishReady;
     }
 
     Future<void> delete(List<String> files) async {
@@ -224,26 +228,72 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         }); // Limit to max 5
     }
 
-    Future<String?> _transliterateToHindi(String text) async {
+    bool _containsHindi(String text) {
+        return RegExp(r'[\u0900-\u097F]').hasMatch(text);
+    }
+
+    Future<String?> _transliterate(String text) async {
         if (text.trim().isEmpty) return null;
+
+        if (_containsHindi(text)) {
+            return await _hindiToEnglishTransliteration(text);
+        } else {
+            return await _englishToHindiTransliteration(text);
+        }
+    }
+
+    Future<String?> _englishToHindiTransliteration(String text) async {
+        if (text.trim().isEmpty) return null;
+
         try {
-        final uri = Uri.parse(
+            final uri = Uri.parse(
             'https://inputtools.google.com/request'
             '?text=${Uri.encodeComponent(text)}'
             '&itc=hi-t-i0-und'
             '&num=1&cp=0&cs=1&ie=utf-8&oe=utf-8',
-        );
-        final res = await http.get(uri).timeout(const Duration(seconds: 3));
-        if (res.statusCode != 200) return null;
+            );
 
-        final data = jsonDecode(res.body);
-        // Response shape: ["SUCCESS",[["transport",["ट्रांसपोर्ट","ट्रान्सपोर्ट"]]]]
-        if (data[0] == "SUCCESS") {
+            final res = await http
+                .get(uri)
+                .timeout(const Duration(seconds: 3));
+
+            if (res.statusCode != 200) return null;
+
+            final data = jsonDecode(res.body);
+
+            if (data[0] == "SUCCESS") {
             final suggestions = data[1][0][1] as List;
-            if (suggestions.isNotEmpty) return suggestions.first as String;
-        }
+
+            if (suggestions.isNotEmpty) {
+                return suggestions.first as String;
+            }
+            }
         } catch (e) {
-        print("transliteration failed: $e");
+            print("English → Hindi transliteration failed: $e");
+        }
+
+        return null;
+    }
+
+    Future<String?> _hindiToEnglishTransliteration(String text) async {
+        if (text.trim().isEmpty) return null;
+        try {
+            final uri = Uri.parse(
+                'https://inputtools.google.com/request'
+                '?text=${Uri.encodeComponent(text)}'
+                '&itc=hi-t-i0-und'
+                '&num=1&cp=0&cs=1&ie=utf-8&oe=utf-8',
+            );
+            final res = await http.get(uri).timeout(const Duration(seconds: 3));
+            if (res.statusCode != 200) return null;
+
+            final data = jsonDecode(res.body);
+            if (data[0] == "SUCCESS") {
+                final suggestions = data[1][0][1] as List;
+                if (suggestions.isNotEmpty) return suggestions.first as String;
+            }
+        } catch (e) {
+            print("transliteration failed: $e");
         }
         return null;
     }
@@ -267,19 +317,17 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         final raw = _queryController.text.trim();
         final terms = <String>{raw};
 
-        if (await _hindiReady()) {
-        final results = await Future.wait([
-            _enToHi.translateText(raw),
-            _hiToEn.translateText(raw),
-        ]);
-        terms.addAll(results);
+        if (await _translationModelsReady()) {
+            final results = await Future.wait([
+                _enToHi.translateText(raw),
+                _hiToEn.translateText(raw),
+            ]);
+            terms.addAll(results);
         }
 
-        final translit = await _transliterateToHindi(raw);
-        if (translit != null) {
-            if(!terms.contains(translit)){
-                terms.add(translit);
-            }
+        final translit = await _transliterate(raw);
+        if(!terms.contains(translit)){
+            terms.add(translit!);
         }
 
         final combined = terms.join(' ');
