@@ -1,0 +1,799 @@
+--------- beginning of main
+08-30 16:38:27.178  1183  1183 D PQenhanceHAL: sunlightRead: current ambient = 67
+--------- beginning of system
+08-30 16:38:27.208  1483  1645 D UsbDeviceManager: Clear notification
+08-30 16:38:27.209  1483  1645 D PowerManagerServiceEx: isScreenOnBlockedLocked
+08-30 16:38:27.210  1483  1645 W PermissionService: getPermissionFlags: Unknown user -1
+08-30 16:38:27.210  1483  1645 W PermissionService: getPermissionFlags: Unknown user -1
+08-30 16:38:27.210  1483  1483 W NotificationHistory: Attempted to add notif for locked/gone/disabled user 0
+08-30 16:38:27.213  1483  1645 D UsbDeviceManager: push notification:Charging connected device via USB
+08-30 16:38:27.213  1483  1645 I SettingsAccessControlPolicy: isDeviceSettingsChangeDisabled: value -> false
+08-30 16:38:27.214  1483  1645 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcast:1249 com.android.server.usb.UsbDeviceManager$UsbHandler.handleMessage:1406 android.os.Handler.dispatchMessage:107 android.os.Looper.loopOnce:232 android.os.Looper.loop:317 
+08-30 16:38:27.214  1483  1645 V BroadcastQueue: Enqueuing BroadcastRecord{fc5f1bc android.hardware.usb.action.USB_CONNECT_STATE/u0} ordered=false from uid 1000 pid 1483 for 1 receivers
+08-30 16:38:27.221  2073  2073 D UsbStatusReceiver: dialog.isShowing()=false, dialog=com.android.systemui.usb.dialog.MyDialog@4feb15f
+08-30 16:38:27.228  1483  1483 D FlashNotifController: requestStartFlashNotification
+08-30 16:38:27.229  1483  1483 I FlashNotifController: startFlashNotification: type=1, tag=android
+08-30 16:38:27.229  1483  1483 D FlashNotifController: Flash notification is disabled
+08-30 16:38:27.230  1483  7089 D PowerManagerServiceEx: isScreenOnBlockedLocked
+08-30 16:38:27.233  1483  1483 W NotificationHistory: Attempted to add notif for locked/gone/disabled user 0
+08-30 16:38:27.237  1483  1483 D PowerManagerServiceEx: isScreenOnBlockedLocked
+08-30 16:38:27.241  1483  1774 W WindowManager: Failed looking up window session=Session{63b410e 2073:u0a10240} callers=com.android.server.wm.WindowManagerService.windowForClientLocked:6693 com.android.server.wm.Session.updateRequestedVisibleTypes:769 android.view.IWindowSession$Stub.onTransact:1097 
+08-30 16:38:27.241  1192  1192 D PowerHAL: enter Power::createHintSession
+08-30 16:38:27.241  1192  1192 D PowerHAL: enter PowerHintSession
+08-30 16:38:27.241  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=2: mTgid: 2073, mUid: 10240
+08-30 16:38:27.241  1192  1192 D PowerHAL: enter case CPU_LOAD_RESET, and uclampMin_High=650
+08-30 16:38:27.242  1192  1192 D PowerHAL: createHintSession return hintSession:0xb4000075a28409e0 
+08-30 16:38:27.243  1483  3915 W AppOps  : Noting op not finished: uid 10240 pkg com.android.systemui code 24 startTime of in progress event=1788086880318
+08-30 16:38:27.244  1483  3926 D PowerHALManager: powerhalmanager createHintSession!!!
+08-30 16:38:27.244  1192  1192 D PowerHAL: enter Power::createHintSession
+08-30 16:38:27.244  1192  1192 D PowerHAL: enter PowerHintSession
+08-30 16:38:27.244  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=2: mTgid: 2073, mUid: 10240
+08-30 16:38:27.244  1192  1192 D PowerHAL: enter case CPU_LOAD_RESET, and uclampMin_High=650
+08-30 16:38:27.244  1192  1192 D PowerHAL: createHintSession return hintSession:0xb4000075a28409e0 
+08-30 16:38:27.246  1483  3926 D PowerHALManager: powerhalmanager setAdpfMode!!!
+08-30 16:38:27.246  1192  1192 D PowerHAL: PowerSessionManager::updateHintMode: mode: REFRESH_60FPS, enabled: 1
+08-30 16:38:27.246  1192  1192 D PowerHAL: profile_name = REFRESH_60FPS
+08-30 16:38:27.246  1192  1192 D PowerHAL: PowerSessionManager::updateHintMode resValue = 1
+08-30 16:38:27.247  1483  1483 D PowerManagerServiceEx: isScreenOnBlockedLocked
+08-30 16:38:27.255  1483  3915 D UFwDisplayJamMonitorImpl: Switch focus to Window{45749c0 u0 com.android.systemui}, [type=2038, isChildWindow=false]*noSurface on APP(ActivityRecord{a3f00f4 u0 com.motorola.launcher3/com.android.launcher3.CustomizationPanelLauncher t13466 d0}) from Window{a83153 u0 com.motorola.launcher3/com.android.launcher3.CustomizationPanelLauncher}, [type=1, isChildWindow=false]-[Surface(name=*Title#6202)/@0x9acd0e4, shown=false, windowType=1], newWindowHandle = 45749c0 com.android.systemui, frame=[Rect(0, 0 - 0, 0)], touchableRegion=SkRegion(), scaleFactor=0.0, transform=null, windowToken=null, displayId=0, isClone=false, contentSize=0x0, alpha=0.0, canOccludePresentation=false, changed=true mGlobalScale=1.0 mCompatScale=1.0 mInvGlobalScale=1.0
+08-30 16:38:27.255  1483  3915 D UFwBLASTSyncEngineImpl: isSupportFeature, mIsSupportFeature = true
+08-30 16:38:27.255  1483  3915 D UFwBLASTSyncEngineImpl: isSupportFeature, mIsSupportFeature = true
+08-30 16:38:27.262  1192  1248 D PowerHAL: PowerSessionManager::disableSystemTopAppBoost!!
+08-30 16:38:27.262  2073  2073 D NotificationListener: onNotificationPosted: StatusBarNotification(pkg=android user=UserHandle{-1} id=32 tag=null key=-1|android|32|null|1000: Notification(channel=USB shortcut=null contentView=null vibrate=null sound=null tick defaults=0 flags=ONGOING_EVENT|CAN_COLORIZE color=0x00000000 vis=PUBLIC))
+08-30 16:38:27.264  1483  1651 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.265  1483  1650 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.268  1483  3915 D CoreBackPreview: Window{45749c0 u0 com.android.systemui}, [type=2038, isChildWindow=false]*noSurface: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@c4d3097, mPriority=-1, mIsAnimationCallback=false}
+08-30 16:38:27.268  1483  1651 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.271  1483  3915 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.271  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.271  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.271  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f090 
+08-30 16:38:27.271  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=2: mTgid: 2188, mUid: 10116
+08-30 16:38:27.271  1192  1192 D PowerHAL: enter case CPU_LOAD_RESET, and uclampMin_High=600
+08-30 16:38:27.271  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f090 return ok!
+08-30 16:38:27.272  1483  7089 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.275  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6237}WindowToken{b29f7fd type=2038 android.os.BinderProxy@680bc54}-topChild=null#6237 isVisible=1 {nothing to draw} changes=Created | Hierarchy | Z | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.275  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6238}45749c0 com.android.systemui#6238 isVisible=1 {nothing to draw} changes=Created | Hierarchy | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.275  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6241}#6241 isVisible=1 {hidden by parent or layer flag} changes=Created | Hierarchy | Metadata | Visibility | AffectsChildren | FrameRate layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.275  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6239}Surface(name=c003277 StatusBar#78)/@0xb9a5f4d - animation-leash of insets_animation#6239 isVisible=1 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.275  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6240}Surface(name=68e7b42 NavigationBar0#74)/@0xe365890 - animation-leash of insets_animation#6240 isVisible=1 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-10800,-26280,21720,10800} geomLayerTransform={tx=0,ty=2280}}
+08-30 16:38:27.275  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 6237}WindowToken{b29f7fd type=2038 android.os.BinderProxy@680bc54}-topChild=null#6237 isVisible=0 {nothing to draw} changes=Created | Hierarchy | Z | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.275  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 6238}45749c0 com.android.systemui#6238 isVisible=0 {nothing to draw} changes=Created | Hierarchy | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.275  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 6241}#6241 isVisible=0 {hidden by parent or layer flag} changes=Created | Hierarchy | Metadata | Visibility | AffectsChildren | FrameRate layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.275  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 6239}Surface(name=c003277 StatusBar#78)/@0xb9a5f4d - animation-leash of insets_animation#6239 isVisible=0 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.275  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 6240}Surface(name=68e7b42 NavigationBar0#74)/@0xe365890 - animation-leash of insets_animation#6240 isVisible=0 {nothing to draw} changes=Created | Hierarchy | Geometry | Z | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-10800,-26280,21720,10800} geomLayerTransform={tx=0,ty=2280}}
+08-30 16:38:27.277  1483  7089 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.277  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.277  1483  7089 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.277  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.277  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a2843ad0 
+08-30 16:38:27.277  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=2: mTgid: 2073, mUid: 10240
+08-30 16:38:27.277  1192  1192 D PowerHAL: enter case CPU_LOAD_RESET, and uclampMin_High=650
+08-30 16:38:27.277  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a2843ad0 return ok!
+08-30 16:38:27.277  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.277  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.277  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a2843ad0 
+08-30 16:38:27.277  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:27.277  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:27.278  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a2843ad0 return ok!
+08-30 16:38:27.279  2188  2188 I SearchView: adjustLayoutParams lp.bottomMargin = 389
+08-30 16:38:27.282  5346  5346 I adbd    : adbd service requested 'shell,v2,TERM=xterm-256color:export ANDROID_LOG_TAGS=''; exec logcat'
+08-30 16:38:27.286  1476  1608 D NuPlayerDriver: NuPlayerDriver(0xf6384390) created, clientPid(2073)
+08-30 16:38:27.289  2073  2073 D NotificationListener: onNotificationRemoved: StatusBarNotification(pkg=android user=UserHandle{-1} id=32 tag=null key=-1|android|32|null|1000: Notification(channel=USB shortcut=null contentView=null vibrate=null sound=null tick defaults=0 flags=ONGOING_EVENT|CAN_COLORIZE color=0x00000000 vis=PUBLIC)) reason: 8
+08-30 16:38:27.289  2073  2073 D NotificationListener: onNotificationPosted: StatusBarNotification(pkg=android user=UserHandle{-1} id=26 tag=null key=-1|android|26|null|1000: Notification(channel=DEVELOPER_IMPORTANT shortcut=null contentView=null vibrate=null sound=null tick defaults=0 flags=ONGOING_EVENT|CAN_COLORIZE color=0x00000000 vis=PUBLIC))
+08-30 16:38:27.292  2073  2073 D SprdActivityDebugConfigsUtilImpl: get Debug Configs, debugType: DEBUG_WINDOW_STATE, TAG: null
+08-30 16:38:27.292  1483  3926 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.292  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.292  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.292  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:27.292  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=2: mTgid: 2073, mUid: 10240
+08-30 16:38:27.292  1192  1192 D PowerHAL: enter case CPU_LOAD_RESET, and uclampMin_High=650
+08-30 16:38:27.292  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:27.292  1483  1651 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.298  1483  3926 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.302  1483  1651 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.304  2188  2188 I SearchView: current light = 0.30980393
+08-30 16:38:27.305   465   465 I hwservicemanager: getTransport: Cannot find entry android.hardware.media.omx@1.0::IOmx/default in either framework or device VINTF manifest.
+08-30 16:38:27.306  1476  1608 D MediaPlayerService: OMX service is not available
+08-30 16:38:27.315  1476  1608 I Codec2-HalSelection: selection: hidl
+08-30 16:38:27.317  2073  2505 D LocalImageResolver: Couldn't use ImageDecoder for drawable, falling back to non-resized load.
+08-30 16:38:27.324  2073  2505 D LocalImageResolver: Couldn't use ImageDecoder for drawable, falling back to non-resized load.
+08-30 16:38:27.324  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6242}Dim Layer for - WindowedMagnification:0:31#6242 isVisible=1 {alpha = 0 and no blur} changes=Created | Hierarchy | Geometry | Content | Input | Z | RelativeParent | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={0,0,2400,1080} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.324  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6241}#6241 isVisible=0 { buffer=8903467207461 frame=1 color{< 0, 0, 0, 1 >}} changes=Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={0,0,730,1080} geomLayerTransform={tx=0,ty=1670}} input{(0x0) touchableRegion={-1080,-4070,3130,2160}}
+08-30 16:38:27.325  1218  1218 D DisplayModeController: setDesiredMode 4619827259835644672 {mode={fps=90.00 Hz, modePtr={id=2, vsyncRate=90.00 Hz, peakRefreshRate=90.00 Hz}}, emitEvent=true, force=false}
+08-30 16:38:27.325  1175  1279 D SPRDHWComposer: HWCDisplay::get_display_attribute <635>: config = 2
+08-30 16:38:27.325  1175  1279 D SPRDHWComposer: SprdDrm:: getActiveConfig: 0
+08-30 16:38:27.325  1175  1279 D SPRDHWComposer: HWCDisplay::get_display_attribute <635>: config = 0
+08-30 16:38:27.326  1175  1279 D SPRDHWComposer: HWC Range:1, HWC_Transfer:4
+08-30 16:38:27.326  1175  1279 D SPRDHWComposer: SprdDrm:: getActiveConfig: 0
+08-30 16:38:27.326  1175  1279 D SPRDHWComposer: HWCDisplay::get_display_attribute <635>: config = 2
+08-30 16:38:27.326  1175  1279 I SPRDHWComposer: SprdDrm:: setActiveConfig: 2, DisplayType:0
+08-30 16:38:27.326  1175  1279 I SPRDHWComposer: Create blob_id: 182
+08-30 16:38:27.329  2073  2073 W TouchableRegionManager: onHeadsUpPinnedModeChanged
+08-30 16:38:27.331  1483  3926 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.332  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.332  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.332  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f090 
+08-30 16:38:27.332  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2188, mUid: 10116
+08-30 16:38:27.332  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=600
+08-30 16:38:27.332  2073  2073 D HeadsUpAppearanceController: shouldBeVisible(), canShow:true, mHeadsUpManager.hasPinnedHeadsUp():true
+08-30 16:38:27.332  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f090 return ok!
+08-30 16:38:27.332  2073  2073 D HeadsUpAppearanceController: shouldBeVisible(), canShow:true, mHeadsUpManager.hasPinnedHeadsUp():true
+08-30 16:38:27.332  2073  2073 D CollapsedStatusBarFragment: shouldHideStatusBar() is false
+08-30 16:38:27.332  2073  2073 D HeadsUpAppearanceController: shouldBeVisible(), canShow:true, mHeadsUpManager.hasPinnedHeadsUp():true
+08-30 16:38:27.333  2073  2073 D HeadsUpAppearanceController: shouldBeVisible(), canShow:true, mHeadsUpManager.hasPinnedHeadsUp():true
+08-30 16:38:27.333  1483  3912 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.334  2073  2073 D BaseHeadsUpManager: showNotification(), entry.getSbn():StatusBarNotification(pkg=android user=UserHandle{-1} id=26 tag=null key=-1|android|26|null|1000: Notification(channel=DEVELOPER_IMPORTANT shortcut=null contentView=null vibrate=null sound=null tick defaults=0 flags=ONGOING_EVENT|CAN_COLORIZE color=0x00000000 vis=PUBLIC))
+08-30 16:38:27.335  2073  2073 W Looper  : Slow delivery took 9058ms main h=android.os.Handler c=com.android.systemui.statusbar.notification.logging.NotificationLogger$1@3ca8163 m=0
+08-30 16:38:27.335  2073  2073 W Looper  : Drained
+08-30 16:38:27.335  1483  3915 D CoreBackPreview: Window{7f4727f u0 NotificationShade}, [type=2040, isChildWindow=false]*noSurface: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@275c9c6, mPriority=0, mIsAnimationCallback=false}
+08-30 16:38:27.335  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.335  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.335  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f6c0 
+08-30 16:38:27.335  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=2: mTgid: 2073, mUid: 10240
+08-30 16:38:27.335  1192  1192 D PowerHAL: enter case CPU_LOAD_RESET, and uclampMin_High=650
+08-30 16:38:27.335  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f6c0 return ok!
+08-30 16:38:27.338  1183  1183 D PQenhanceHAL: sunlightRead: current ambient = 57
+08-30 16:38:27.342  1218  1218 D PowerHALCli: setAdpfMode: mIVendorPower setAdpfMode start
+08-30 16:38:27.342  1218  1218 D PowerHALCli: setAdpfMode: mIVendorPower setAdpfMode end
+08-30 16:38:27.342  1192  1192 D PowerHAL: PowerSessionManager::updateHintMode: mode: REFRESH_90FPS, enabled: 1
+08-30 16:38:27.342  1192  1192 D PowerHAL: profile_name = REFRESH_90FPS
+08-30 16:38:27.342  1192  1192 D PowerHAL: PowerSessionManager::updateHintMode resValue = 1
+08-30 16:38:27.346  1483  1650 I DisplayDeviceRepository: Display device changed render timings: "Built-in Screen", renderFrameRate=90.0, presentationDeadlineNanos=15111111, appVsyncOffsetNanos=-4000000
+08-30 16:38:27.348  2073  2073 D ShadeViewDiffer: addChildAt:index=1 childNode = -1|android|26|null|1000 parentNode = <root> 
+08-30 16:38:27.352  1483  1650 D DisplayManagerService: Ignore redundant display event 0/2 to 10251/771
+08-30 16:38:27.353  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.354  1483  1650 D DisplayManagerService: Ignore redundant display event 0/2 to 10183/4451
+08-30 16:38:27.354  1483  1650 D DisplayManagerService: Ignore redundant display event 0/2 to 10194/6735
+08-30 16:38:27.354  1483  1650 D DisplayManagerService: Ignore redundant display event 0/2 to 10194/6941
+08-30 16:38:27.354  1483  1650 D DisplayManagerService: Ignore redundant display event 0/2 to 10188/17314
+08-30 16:38:27.354  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.354  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.354  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.354  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2073,level=1,buf=2073 1
+08-30 16:38:27.355  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2272,level=1,buf=2272 1
+08-30 16:38:27.355  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2073,level=1,buf=2073 1
+08-30 16:38:27.355  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2272,level=1,buf=2272 1
+08-30 16:38:27.355  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.356  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2073,level=0,buf=2073 0
+08-30 16:38:27.356  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.356  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2272,level=0,buf=2272 0
+08-30 16:38:27.360  1168  1974 D audio_hw_module: amod_set_parameters: enter: kvpairs - screen_state=on
+08-30 16:38:27.360  1483  1646 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.364  1483  1651 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.367  1483  7015 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.368  1476  1608 I Codec2-HalSelection: selection: hidl
+08-30 16:38:27.370  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 6242}Dim Layer for - WindowedMagnification:0:31#6242 isVisible=0 { color{< 0, 0, 0, 0.175049 >}} changes=Hierarchy | Content | Input | Z | RelativeParent | Visibility | AffectsChildren | FrameRate | VisibleRegion | Animation layerStack=0 geomLayerBounds={0,0,2400,1080} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.371  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6242}Dim Layer for - WindowedMagnification:0:31#6242 isVisible=1 { color{< 0, 0, 0, 0.175049 >}} changes=Hierarchy | Content | Input | Z | RelativeParent | Visibility | AffectsChildren | FrameRate | VisibleRegion | Animation layerStack=0 geomLayerBounds={0,0,2400,1080} geomLayerTransform={tx=0,ty=0}} input{(NO_INPUT_CHANNEL | NOT_VISIBLE) touchableRegion={0,0,0,0}}
+08-30 16:38:27.372  1175  1279 D SPRDHWComposer: HWC Range:1, HWC_Transfer:4
+08-30 16:38:27.376  1476  1608 I Codec2-HalSelection: selection: hidl
+08-30 16:38:27.380  1483  3915 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.385  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.385  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.385  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2073,level=1,buf=2073 1
+08-30 16:38:27.385  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2272,level=1,buf=2272 1
+08-30 16:38:27.385  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.385  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.385  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2073,level=1,buf=2073 1
+08-30 16:38:27.385  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.385  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2272,level=1,buf=2272 1
+08-30 16:38:27.385  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.385  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2073,level=1,buf=2073 1
+08-30 16:38:27.385  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.385  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2272,level=1,buf=2272 1
+08-30 16:38:27.385  1483  1679 D PowerHALManager: powerhalmanager setviptaskbypid!!!
+08-30 16:38:27.385  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2073,level=1,buf=2073 1
+08-30 16:38:27.385  1192  1192 D PowerHAL: set_viptask:tag=UFwAppResCtl,type=ui,pid=2272,level=1,buf=2272 1
+08-30 16:38:27.387  1483  7015 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.387  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.387  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.387  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f6c0 
+08-30 16:38:27.387  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:27.387  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:27.388  1483  1825 I ImeTracker: com.android.systemui:63623a73: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
+08-30 16:38:27.388  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f6c0 return ok!
+08-30 16:38:27.388  1483  1825 I ImeTracker: com.android.systemui:63623a73: onCancelled at PHASE_SERVER_SHOULD_HIDE
+08-30 16:38:27.390 30564 30564 I SubtypeOperator: SubtypeOperator$1.onUnbindInput():43 
+08-30 16:38:27.390 30564 30564 I SubtypeOperator: SubtypeOperator$1.onBindInput():33 
+08-30 16:38:27.393  1483  3915 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.394  2073  2073 D UniMobileIconBinder-1: activityInOutIcon refresh. id = 0
+08-30 16:38:27.394  2073  2073 D UniMobileIconBinder-1: mobileImsId=2131233827 subId=1
+08-30 16:38:27.395  2073  2073 D UniMobileIconBinder-1: activityInOutIcon refresh. id = 0
+08-30 16:38:27.395  2073  2073 D UniMobileIconBinder-1: mobileImsId=2131233827 subId=1
+08-30 16:38:27.395  2073  2073 D UniMobileIconBinder-1: activityInOutIcon refresh. id = 0
+08-30 16:38:27.395  2073  2073 D UniMobileIconBinder-1: mobileImsId=2131233827 subId=1
+08-30 16:38:27.396  1483  1951 D WifiStaIfaceHidlImpl: getCachedScanData is not implemented by HIDL
+08-30 16:38:27.397  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6243}Surface(name=c003277 StatusBar#78)/@0xb9a5f4d - animation-leash of insets_animation#6243 isVisible=1 {hidden by parent or layer flag} changes=Created | Metadata | FrameRate layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.397  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 6243}Surface(name=c003277 StatusBar#78)/@0xb9a5f4d - animation-leash of insets_animation#6243 isVisible=0 {hidden by parent or layer flag} changes=Created | Metadata | Visibility | FrameRate layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.399  1483  7015 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.403  1483  1651 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.404  1483  1651 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.405  1483  7015 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.405  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.405  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.405  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:27.405  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:27.405  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:27.406  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:27.408  1483  1483 D WiFiBlocklistController: Wifi onCapabilitiesChanged
+08-30 16:38:27.408  1483  1483 D WiFiBlocklistController: Default net onCapabilitiesChanged
+08-30 16:38:27.408  1483  1483 D WiFiBlocklistController: updateDefaultNet:125
+08-30 16:38:27.408  1483  1483 D WiFiBlocklistController: mayUpdateNotification: shouldShow=false,UidsBlocked=false, net info=net:125,ifName=wlan0,securityType=2,isDefault=true,ssid="GM-BSNL_AGGARWAL",notificationId=0
+08-30 16:38:27.409  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 83}StatusBar#83 isVisible=1 {alpha = 0 and no blur} changes=Hierarchy | Geometry | Input | Visibility | AffectsChildren | FrameRate layerStack=0 geomLayerBounds={0,0,108,1080} geomLayerTransform={tx=0,ty=0}} input{(NOT_FOCUSABLE) touchableRegion={0,0,108,1080}}
+08-30 16:38:27.409  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6244}NotificationShade#6244 isVisible=1 {hidden by parent or layer flag} changes=Created | Geometry | Metadata | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.409  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 6244}NotificationShade#6244 isVisible=0 {hidden by parent or layer flag} changes=Created | Geometry | Metadata | Visibility | AffectsChildren | FrameRate | VisibleRegion layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.412  1483  1560 I system_server: Background young concurrent mark compact GC freed 39MB AllocSpace bytes, 149(4968KB) LOS objects, 36% free, 76MB/120MB, paused 1.450ms,4.459ms total 131.845ms
+08-30 16:38:27.416  1483  7015 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.417  2073  2073 D UnisocThemedBatteryDrawable: setChargingSpeed:-1
+08-30 16:38:27.418  1547  2770 I NullBinder: NullBinder for android.net.action.RECOMMEND_NETWORKS triggering remote TransactionTooLargeException due to Service without Chimera impl, calling uid: 1000, calling pid: 0
+08-30 16:38:27.418  1547  2770 W .gms.persistent: Large reply transaction of 1056768 bytes, interface descriptor , code 1
+08-30 16:38:27.420 15489 15531 D WM-WorkConstraintsTrack: NetworkRequestConstraintController onCapabilitiesChanged callback
+08-30 16:38:27.420  1483  1951 I HalDevMgr: bestIfaceCreationProposal is null, requestIface=STA, existingIface=[name=wlan0 type=STA]
+08-30 16:38:27.421 30564 30564 I GoogleInputMethodService: GoogleInputMethodService.onFinishInput():2361 
+08-30 16:38:27.421 30564 30564 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1532 onStartInput(EditorInfo{EditorInfo{packageName=com.android.systemui, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+08-30 16:38:27.421 30564 30564 I LatinIMEBase: LatinIMEBase.updateInputViewCoverNavigation():316 Update input view padding, isNavbarOverInputWindow=false, bottom inset=120
+08-30 16:38:27.422  1483  1651 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.422  1483  3915 W PackageConfigPersister: App-specific configuration not found for packageName: com.android.systemui and userId: 0
+08-30 16:38:27.423  2073  2073 W Looper  : Slow delivery took 54ms main h=android.os.Handler c=com.android.systemui.statusbar.notification.row.NotificationSettingsController$$ExternalSyntheticLambda0@dc15851 m=0
+08-30 16:38:27.424  3821  4555 I BugleRcsEngine: handleMessage processing message:[NOTIFY_UPTIME_IGNORE_STATE_CHANGED] with [non-null]:RcsEngineImpl reference [CONTEXT log_prefix="RcsEngineImpl[DUAL_REG]:[ff7b0caa-acf6]>Handler" thread_id=121 ]
+08-30 16:38:27.426 30564 32741 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatusInternal():119 repeatCheckTimes = 0, locked = false
+08-30 16:38:27.426 30564 32741 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatusInternal():119 repeatCheckTimes = 1, locked = false
+08-30 16:38:27.427  1483  1992 D NetworkAdapter: cp vowifi onCapabilitiesChanged network: 125
+08-30 16:38:27.427  3886 10380 I ModemStats: [DataStallDetectService] onCapabilitiesChanged networkCapabilities=[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED LinkUpBandwidth>=13076Kbps LinkDnBandwidth>=19213Kbps TransportInfo: <SSID: <unknown ssid>, BSSID: 02:00:00:00:00:00, MAC: 02:00:00:00:00:00, IP: /192.168.1.37, Security type: 2, Supplicant state: COMPLETED, Wi-Fi standard: 11n, RSSI: -75, Link speed: 13Mbps, Tx Link speed: 13Mbps, Max Supported Tx Link speed: 150Mbps, Calculated Tx : 8Mbps, Rx Link speed: 27Mbps, Max Supported Rx Link speed: 150Mbps, Calculated Rx : 4Mbps, Frequency: 2437MHz, Net ID: -1, Metered hint: false, score: 100, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: -1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none><none>MLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>, Vendor Data: <none>> SignalStrength: -75 UnderlyingNetworks: Null]
+08-30 16:38:27.427  3886 10380 I ModemStats: [DataStallDetectService] onCapabilitiesChanged NET_CAPABILITY_VALIDATED=true
+08-30 16:38:27.427  3886 10380 I ModemStats: [DataStallDetectService] onCapabilitiesChanged mDataStallManager.mDataStallInstance=null
+08-30 16:38:27.427  3886 10380 I ModemStats: [DataStallDetectService] onCapabilitiesChanged mDataStallSmart5gManager.mDataStallInstance=null
+08-30 16:38:27.428  1483  7015 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.412  2302  3075 D [N3AM]PhoneStateMonitor: onCapabilitiesChanged network: 125
+08-30 16:38:27.431  2183  2963 D WM-NetworkStateTracker: Network capabilities changed: [ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED LinkUpBandwidth>=13076Kbps LinkDnBandwidth>=19213Kbps TransportInfo: <SSID: <unknown ssid>, BSSID: 02:00:00:00:00:00, MAC: 02:00:00:00:00:00, IP: /192.168.1.37, Security type: 2, Supplicant state: COMPLETED, Wi-Fi standard: 11n, RSSI: -75, Link speed: 13Mbps, Tx Link speed: 13Mbps, Max Supported Tx Link speed: 150Mbps, Calculated Tx : 8Mbps, Rx Link speed: 27Mbps, Max Supported Rx Link speed: 150Mbps, Calculated Rx : 4Mbps, Frequency: 2437MHz, Net ID: -1, Metered hint: false, score: 100, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: -1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none><none>MLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>, Vendor Data: <none>> SignalStrength: -75 UnderlyingNetworks: Null]
+08-30 16:38:27.431  3821  4450 I BugleRcsEngine: Connected state: [1], networkType: [WIFI] [CONTEXT thread_id=117 ]
+08-30 16:38:27.431  2073  2073 W Looper  : Drained
+08-30 16:38:27.431  2073  2073 D WifiSignalController: connected : true, level : 3, isDefault : true, inetCondition : 1, statusLabel : null
+08-30 16:38:27.432  1483  1958 D ConnectivityService: NetReassign [no changes] [c 0] [a 3] [i 0]
+08-30 16:38:27.432  1483  3915 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.434  1547  9176 I NearbyMediums: Wifi changed new SSID: "GM-BSNL_AGGARWAL"
+08-30 16:38:27.434  1547  9176 I NearbyMediums: WifiLanConnectivityInfo is not changed, skip notify.
+08-30 16:38:27.436  1483  1651 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.436  1483  7015 D SystemServerTiming: getUserSwitchability-0
+08-30 16:38:27.436  1483  7015 D SystemServerTiming: TM.isInCall
+08-30 16:38:27.437  1483  7015 D SystemServerTiming: hasUserRestriction-DISALLOW_USER_SWITCH
+08-30 16:38:27.437  1483  7015 D SystemServerTiming: getInt-ALLOW_USER_SWITCHING_WHEN_SYSTEM_USER_LOCKED
+08-30 16:38:27.437  1483  7015 D SystemServerTiming: isUserUnlocked-USER_SYSTEM
+08-30 16:38:27.437  1483  3912 D SystemServerTiming: getUserSwitchability-0
+08-30 16:38:27.437  1483  3912 D SystemServerTiming: TM.isInCall
+08-30 16:38:27.437  1483  3912 D SystemServerTiming: hasUserRestriction-DISALLOW_USER_SWITCH
+08-30 16:38:27.437  1483  3912 D SystemServerTiming: getInt-ALLOW_USER_SWITCHING_WHEN_SYSTEM_USER_LOCKED
+08-30 16:38:27.437  1483  3912 D SystemServerTiming: isUserUnlocked-USER_SYSTEM
+08-30 16:38:27.441  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6245}Surface(name=4e7b001 InputMethod#114)/@0x965e0e7 - animation-leash of insets_animation#6245 isVisible=1 {hidden by parent or layer flag} changes=Created | Metadata | FrameRate layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.442  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 83}StatusBar#83 isVisible=0 { buffer=8903467205481 frame=11081 color{< 0, 0, 0, 1 >}} changes=Content | Visibility | AffectsChildren | FrameRate | Buffer layerStack=0 geomLayerBounds={0,0,108,1080} geomLayerTransform={tx=0,ty=-108}} input{(NOT_FOCUSABLE) touchableRegion={0,0,108,1080}}
+08-30 16:38:27.442  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:1, Snapshot{TraversalPath{.id = 6244}NotificationShade#6244 isVisible=0 { buffer=8903467207467 frame=2 color{< 0, 0, 0, 1 >}} changes=Content | Input | Visibility | AffectsChildren | FrameRate | VisibleRegion | Buffer layerStack=0 geomLayerBounds={0,0,2400,1080} geomLayerTransform={tx=0,ty=0}} input{(NOT_FOCUSABLE | WATCH_OUTSIDE_TOUCH) touchableRegion={40,0,133,1040}}
+08-30 16:38:27.442  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 6245}Surface(name=4e7b001 InputMethod#114)/@0x965e0e7 - animation-leash of insets_animation#6245 isVisible=0 {hidden by parent or layer flag} changes=Created | Metadata | Visibility | FrameRate layerStack=0 geomLayerBounds={-10800,-24000,24000,10800} geomLayerTransform={tx=0,ty=0}}
+08-30 16:38:27.443  1175  1279 D SPRDHWComposer: HWC Range:1, HWC_Transfer:4
+08-30 16:38:27.443  1483  7015 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.446  1483  1651 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.446  1483  1483 W NotificationHistory: Attempted to add notif for locked/gone/disabled user 0
+08-30 16:38:27.448  1483  1483 D PowerManagerServiceEx: isScreenOnBlockedLocked
+08-30 16:38:27.449  1483  1483 W PermissionService: getPermissionFlags: Unknown user -1
+08-30 16:38:27.450  1483  7015 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.454  2073  2073 D NotificationListener: onNotificationPosted: StatusBarNotification(pkg=android user=UserHandle{-1} id=31 tag=null key=-1|android|31|null|1000: Notification(channel=USB shortcut=null contentView=null vibrate=null sound=null tick defaults=0 flags=ONGOING_EVENT|CAN_COLORIZE color=0x00000000 vis=PUBLIC))
+08-30 16:38:27.455  2073  2073 D BiometricsRepositoryImpl: currentUser authFlags changed, new value: AuthenticationFlags(userId=0, flag=0)
+08-30 16:38:27.456  2073  2073 D BiometricsRepositoryImpl: currentUser authFlags changed, new value: AuthenticationFlags(userId=0, flag=0)
+08-30 16:38:27.456  2073  2073 D BiometricsRepositoryImpl: currentUser authFlags changed, new value: AuthenticationFlags(userId=0, flag=0)
+08-30 16:38:27.456  2073  2073 D BiometricsRepositoryImpl: currentUser authFlags changed, new value: AuthenticationFlags(userId=0, flag=0)
+08-30 16:38:27.456  2073  2073 D BiometricsRepositoryImpl: currentUser authFlags changed, new value: AuthenticationFlags(userId=0, flag=0)
+08-30 16:38:27.457  2073  2073 D BiometricsRepositoryImpl: currentUser authFlags changed, new value: AuthenticationFlags(userId=0, flag=0)
+08-30 16:38:27.458  2073  2166 D ControlsListingControllerImpl: Subscribing callback, service count: 1
+08-30 16:38:27.458  2073  2166 D ControlsListingControllerImpl: Subscribing callback, service count: 1
+08-30 16:38:27.459  2073  2166 D ControlsListingControllerImpl: Subscribing callback, service count: 1
+08-30 16:38:27.461  2073  2166 E QuickAccessWalletKeyguardQuickAffordanceConfig: Wallet card retrieval error, message: "null"
+08-30 16:38:27.461  2073  2166 E QuickAccessWalletKeyguardQuickAffordanceConfig: Wallet card retrieval error, message: "null"
+08-30 16:38:27.464  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.464  1476  9373 D GenericSource: FileSource remote
+08-30 16:38:27.467  2073  2166 E QuickAccessWalletKeyguardQuickAffordanceConfig: Wallet card retrieval error, message: "null"
+08-30 16:38:27.472  2073  2505 D LocalImageResolver: Couldn't use ImageDecoder for drawable, falling back to non-resized load.
+08-30 16:38:27.473  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.479  2073  2505 D LocalImageResolver: Couldn't use ImageDecoder for drawable, falling back to non-resized load.
+08-30 16:38:27.483  2073  2073 D ShadeViewDiffer: addChildAt:index=2 childNode = silent header parentNode = <root> 
+08-30 16:38:27.483  2073  2073 D ShadeViewDiffer: addChildAt:index=3 childNode = -1|android|31|null|1000 parentNode = <root> 
+08-30 16:38:27.488  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.494  1483  7015 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.497  1483  7015 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.497  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.497  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.497  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f6c0 
+08-30 16:38:27.497  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:27.497  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:27.497  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f6c0 return ok!
+08-30 16:38:27.499  1183  1183 D PQenhanceHAL: sunlightRead: current ambient = 61
+08-30 16:38:27.502  1483  3911 I MediaFocusControl: requestAudioFocus() from uid/pid 10240/2073 AA=USAGE_NOTIFICATION/CONTENT_TYPE_SONIFICATION clientId=android.media.AudioManager@64d72e9 callingPack=com.android.systemui req=3 flags=0x0 sdk=35
+08-30 16:38:27.502  1483  3911 I AS.FadeOutManager: unfadeOutUid() uid:10240
+08-30 16:38:27.504  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.516  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.517  1483  3911 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.517  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.517  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.517  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:27.517  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:27.517  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:27.517  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:27.528  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.540  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.550  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.561  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.572  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.583  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.595  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.606  1483  3912 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.606  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.607  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.607  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.607  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f6c0 
+08-30 16:38:27.607  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:27.607  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:27.607  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f6c0 return ok!
+08-30 16:38:27.617  1483  3912 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.619  1483  3911 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.619  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.619  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.619  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:27.619  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:27.619  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:27.619  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:27.627  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.640  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.650  1483  3911 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.653  1218  1218 I SurfaceFlinger: updating visibility visibleForInput:0, Snapshot{TraversalPath{.id = 79}NavigationBar0#79 isVisible=1 {hidden by parent or layer flag} changes=Visibility | AffectsChildren | FrameRate layerStack=0 geomLayerBounds={0,0,120,1080} geomLayerTransform={tx=0,ty=2400}} input{(NOT_FOCUSABLE | WATCH_OUTSIDE_TOUCH | SLIPPERY) touchableRegion={0,0,120,1080}}
+08-30 16:38:27.656  2073  2073 D NotificationListener: onNotificationPosted: StatusBarNotification(pkg=android user=UserHandle{-1} id=2147483647 tag=ranker_group key=-1|android|2147483647|ranker_group|1000|ranker_group: Notification(channel=USB shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=ONGOING_EVENT|LOCAL_ONLY|GROUP_SUMMARY|AUTOGROUP_SUMMARY color=0x00000000 groupKey=ranker_group vis=PUBLIC))
+08-30 16:38:27.664  1483  3912 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.673  1483  3912 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.683  1483  3912 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.693  1483  3912 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.704  1483  3912 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.715  1483  3912 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.727  1483  3912 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.728  1483  3911 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.728  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.728  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.728  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:27.728  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:27.728  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:27.728  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:27.739  1483  3912 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.760  1483  3912 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.771  1483  3912 D WindowManager: isSupportDynamicNavbar user0, navBarMode = 0, is3buttonModeNavbar = true
+08-30 16:38:27.829  1483  3912 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:27.830  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:27.830  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:27.830  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:27.830  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:27.830  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:27.830  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:27.917  1547  9176 I NearbySharing: Network state changed: NetworkState(isRestricted=false, isOnline=true, isCongested=false, isMetered=false, isWifiConnected=true)
+08-30 16:38:27.917  1547  9064 I NearbySharing: Network state changed: NetworkState(isRestricted=false, isOnline=true, isCongested=false, isMetered=false, isWifiConnected=true)
+08-30 16:38:28.006  1476  9367 I GenericSource: start
+08-30 16:38:28.007  2073  2073 D MediaRouter: onRestoreRoute() : route=RouteInfo{ name=Phone, description=null, status=null, category=RouteCategory{ name=System types=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO  groupable=false }, supportedTypes=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO , presentationDisplay=null }
+08-30 16:38:28.007  2073  2073 V MediaRouter: Selecting route: RouteInfo{ name=Phone, description=null, status=null, category=RouteCategory{ name=System types=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO  groupable=false }, supportedTypes=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO , presentationDisplay=null }
+08-30 16:38:28.007  1483  3911 D PowerManagerServiceEx: isScreenOnBlockedLocked
+08-30 16:38:28.035  1476  9377 D CCodec  : allocate(c2.android.vorbis.decoder)
+08-30 16:38:28.036  1476  9377 I Codec2-HalSelection: selection: hidl
+08-30 16:38:28.040  1476  9377 I CCodec  : setting up 'default' as default (vendor) store
+08-30 16:38:28.083  1554 20847 I hw-BpHwBinder: onLastStrongRef automatically unlinking death recipients
+08-30 16:38:28.083  1476  9233 D BufferPoolAccessor2.0: bufferpool2 0xf1d80808 : 0(0 size) total buffers - 0(0 size) used buffers - 115/123 (recycle/alloc) - 8/238 (fetch/transfer)
+08-30 16:38:28.085  1476  4575 D BufferPoolAccessor2.0: Destruction - bufferpool2 0xf1d80808 cached: 0/0M, 0/0% in use; allocs: 123, 93% recycled; transfers: 238, 97% unfetched
+08-30 16:38:28.087  1476  9377 I CCodec  : Created component [c2.android.vorbis.decoder]
+08-30 16:38:28.088  1476  9377 D CCodecConfig: read media type: audio/vorbis
+08-30 16:38:28.095  1476  9377 D ReflectedParamUpdater: extent() != 1 for single value type: algo.buffers.max-count.values
+08-30 16:38:28.096  1476  9377 D ReflectedParamUpdater: extent() != 1 for single value type: output.subscribed-indices.values
+08-30 16:38:28.096  1476  9377 D ReflectedParamUpdater: extent() != 1 for single value type: input.buffers.allocator-ids.values
+08-30 16:38:28.097  1476  9377 D ReflectedParamUpdater: extent() != 1 for single value type: output.buffers.allocator-ids.values
+08-30 16:38:28.097  1476  9377 D ReflectedParamUpdater: extent() != 1 for single value type: algo.buffers.allocator-ids.values
+08-30 16:38:28.098  1476  9377 D ReflectedParamUpdater: extent() != 1 for single value type: output.buffers.pool-ids.values
+08-30 16:38:28.098  1476  9377 D ReflectedParamUpdater: extent() != 1 for single value type: algo.buffers.pool-ids.values
+08-30 16:38:28.105  1476  9377 I CCodecConfig: query failed after returning 8 values (BAD_INDEX)
+08-30 16:38:28.105  1476  9377 D CCodecConfig: c2 config diff is Dict {
+08-30 16:38:28.105  1476  9377 D CCodecConfig:   c2::u32 coded.bitrate.value = 64000
+08-30 16:38:28.105  1476  9377 D CCodecConfig:   c2::u32 input.buffers.max-size.value = 32768
+08-30 16:38:28.105  1476  9377 D CCodecConfig:   c2::u32 input.delay.value = 0
+08-30 16:38:28.105  1476  9377 D CCodecConfig:   string input.media-type.value = "audio/vorbis"
+08-30 16:38:28.105  1476  9377 D CCodecConfig:   c2::u32 output.large-frame.max-size = 0
+08-30 16:38:28.105  1476  9377 D CCodecConfig:   c2::u32 output.large-frame.threshold-size = 0
+08-30 16:38:28.105  1476  9377 D CCodecConfig:   string output.media-type.value = "audio/raw"
+08-30 16:38:28.105  1476  9377 D CCodecConfig:   c2::u32 raw.channel-count.value = 1
+08-30 16:38:28.105  1476  9377 D CCodecConfig:   c2::u32 raw.sample-rate.value = 48000
+08-30 16:38:28.105  1476  9377 D CCodecConfig: }
+08-30 16:38:28.111  1476  9377 D CCodec  : [c2.android.vorbis.decoder] buffers are bound to CCodec for this session
+08-30 16:38:28.111  1483  3911 D ActivityManager: Skip enqueue broadcast because no receiver with Intent { act=android.intent.action.MEDIA_RESOURCE_GRANTED flg=0x10 (has extras) }
+08-30 16:38:28.112  1476  9377 D CCodecConfig: no c2 equivalents for durationUs
+08-30 16:38:28.113  1476  9377 D CCodecConfig: no c2 equivalents for csd-1
+08-30 16:38:28.113  1476  9377 D CCodecConfig: no c2 equivalents for flags
+08-30 16:38:28.114  1476  9377 D CCodecConfig: c2 config diff is   c2::u32 coded.bitrate.value = 499821
+08-30 16:38:28.114  1476  9377 D CCodecConfig:   c2::u32 raw.channel-count.value = 2
+08-30 16:38:28.114  1476  9377 D CCodecConfig:   c2::u32 raw.sample-rate.value = 44100
+08-30 16:38:28.116  1476  9377 W Codec2Client: query -- param skipped: index = 1107298332.
+08-30 16:38:28.116  1476  9377 D CCodec  : encoding statistics level = 0
+08-30 16:38:28.116  1476  9377 D CCodec  : setup formats input: AMessage(what = 0x00000000) = {
+08-30 16:38:28.116  1476  9377 D CCodec  :   int32_t bitrate = 499821
+08-30 16:38:28.116  1476  9377 D CCodec  :   int32_t channel-count = 2
+08-30 16:38:28.116  1476  9377 D CCodec  :   int32_t max-input-size = 32768
+08-30 16:38:28.116  1476  9377 D CCodec  :   string mime = "audio/vorbis"
+08-30 16:38:28.116  1476  9377 D CCodec  :   int32_t sample-rate = 44100
+08-30 16:38:28.116  1476  9377 D CCodec  : }
+08-30 16:38:28.116  1476  9377 D CCodec  : setup formats output: AMessage(what = 0x00000000) = {
+08-30 16:38:28.116  1476  9377 D CCodec  :   int32_t buffer-batch-max-output-size = 0
+08-30 16:38:28.116  1476  9377 D CCodec  :   int32_t buffer-batch-threshold-output-size = 0
+08-30 16:38:28.116  1476  9377 D CCodec  :   int32_t channel-count = 2
+08-30 16:38:28.116  1476  9377 D CCodec  :   string mime = "audio/raw"
+08-30 16:38:28.116  1476  9377 D CCodec  :   int32_t sample-rate = 44100
+08-30 16:38:28.116  1476  9377 D CCodec  :   int32_t channel-mask = 3
+08-30 16:38:28.116  1476  9377 D CCodec  :   int32_t android._config-pcm-encoding = 2
+08-30 16:38:28.116  1476  9377 D CCodec  : }
+08-30 16:38:28.116  1476  9377 I CCodecConfig: query failed after returning 8 values (BAD_INDEX)
+08-30 16:38:28.117  1476  9377 I MediaCodec: MediaCodec will operate in async mode
+08-30 16:38:28.117  1476  9376 D MediaCodec: keep callback message for reclaim
+08-30 16:38:28.118  1476  9377 W AString : ctor got NULL, using empty string instead
+08-30 16:38:28.120  1476  9377 W Codec2Client: query -- param skipped: index = 1342179345.
+08-30 16:38:28.120  1476  9377 W Codec2Client: query -- param skipped: index = 2415921170.
+08-30 16:38:28.124  1476  9377 D CCodecBufferChannel: [c2.android.vorbis.decoder#794] Created input block pool with allocatorID 16 => poolID 161 - OK (0)
+08-30 16:38:28.125  1554 20847 D BufferPoolAccessor2.0: bufferpool2 0xb400006fb220dfc8 : 0(0 size) total buffers - 0(0 size) used buffers - 113/117 (recycle/alloc) - 4/116 (fetch/transfer)
+08-30 16:38:28.125  1554 20847 D BufferPoolAccessor2.0: Destruction - bufferpool2 0xb400006fb220dfc8 cached: 0/0M, 0/0% in use; allocs: 117, 97% recycled; transfers: 116, 97% unfetched
+08-30 16:38:28.128  1476  9377 I CCodecBufferChannel: [c2.android.vorbis.decoder#794] Created output block pool with allocatorID 16 => poolID 587 - OK
+08-30 16:38:28.128  1476  9377 D CCodecBufferChannel: [c2.android.vorbis.decoder#794] Configured output block pool ids 587 => OK
+08-30 16:38:28.129  1554 20847 E Codec2-ComponentInterface: We have a failed config
+08-30 16:38:28.133  1554  9378 D SimpleC2Component: Using output block pool with poolID 587 => got 587 - 0
+08-30 16:38:28.152  1208 11356 D APM_AudioPolicyManager: selectOutput new bestOutput 13 criteria 0 100 0 0 0 0 0 2 
+08-30 16:38:28.154  1208 11356 D APM_AudioPolicyManager: selectOutput new bestOutput 13 criteria 0 100 0 0 0 0 0 2 
+08-30 16:38:28.156  1476  9375 I AudioTrack: set(): streamType 5, sampleRate 44100, format 0x1, channelMask 0x3, frameCount 22050, flags 0, notificationFrames 0, sessionId 4257, transferType 0, uid 10240, pid 2073, packageName com.android.systemui
+08-30 16:38:28.157  1208 11356 D AudioPolicyManagerCustomBase: isFadeEnable() fadeEnabled:1
+08-30 16:38:28.157  1208 11356 I APM_AudioPolicyManager: isFadeWhiteListApp() packageName:com.android.systemui
+08-30 16:38:28.158  1208 11356 V AudioPolicyManagerCustomBase: isFadeWhiteListApp() target app:com.android.systemui compare to:com.google.android.apps.nbu.files
+08-30 16:38:28.158  1208 11356 V AudioPolicyManagerCustomBase: isFadeWhiteListApp() target app:com.android.systemui compare to:com.google.android.apps.youtube.music
+08-30 16:38:28.158  1476  9375 D AudioTrack: set() fadeEnabled:1, isWhiteApp: 0
+08-30 16:38:28.159  1476  9375 D AudioTrack: set(): Building AudioTrack with attributes: usage=5 content=4 flags=0x800 tags=[]
+08-30 16:38:28.164  1192  1248 D PowerHAL: PowerSessionManager::enableSystemTopAppBoost!!
+08-30 16:38:28.168  1208 11356 D APM_AudioPolicyManager: getOutputForAttrInt() attributes={ Content type: AUDIO_CONTENT_TYPE_SONIFICATION Usage: AUDIO_USAGE_NOTIFICATION Source: AUDIO_SOURCE_INVALID Flags: 0x800 Tags:  } stream=AUDIO_STREAM_NOTIFICATION session 4257 selectedDeviceId 0
+08-30 16:38:28.169  1208 11356 I APM_AudioPolicyManager: getOutputForAttrInt() device {AUDIO_DEVICE_OUT_SPEAKER, @:}, sampling rate 44100, format 0x1, channel mask 0x3, flags 0 stream AUDIO_STREAM_NOTIFICATION
+08-30 16:38:28.169  1208 11356 D APM_AudioPolicyManager: getOutputForDevices() stream=5  *flags=0
+08-30 16:38:28.169  1208 11356 D APM_AudioPolicyManager: getOutputForDevices() AUDIO_STREAM_RING stream go to fast output!!
+08-30 16:38:28.171  1208 11356 I AudioPolicyManagerCustomImplwhale: isHifiEnable: hifi audio playback not enabled in this product
+08-30 16:38:28.171  1208 11356 D APM_AudioPolicyManager: selectOutput new bestOutput 13 criteria 0 100 0 0 0 0 4 2 
+08-30 16:38:28.172  1208 11356 D APM_AudioPolicyManager: selectOutput new bestOutput 29 criteria 0 100 0 0 0 1 4 0 
+08-30 16:38:28.172  1208 11356 D APM_AudioPolicyManager: getOutputForAttrInt returns output 29 selectedDeviceId 3
+08-30 16:38:28.172  1208 11356 I APM_AudioPolicyManager: getOutputForAttr() returns output 29 requestedPortId 0 selectedDeviceId 3 for port ID 490
+08-30 16:38:28.173  1208 11356 D AudioFlinger: Client defaulted notificationFrames to 11025 for frameCount 22050
+08-30 16:38:28.193  1208  1658 I AudioFlinger: acquireWakeLock_l() AudioOut_D status 0
+08-30 16:38:28.193  1208  1667 I AudioFlinger: acquireWakeLock_l() AudioOut_15 status 0
+08-30 16:38:28.193  1208  1658 D AudioFlinger: ro.audio.silent is ignored since no output device is set
+08-30 16:38:28.195  1483  3911 D PowerManagerServiceEx: isScreenOnBlockedLocked
+08-30 16:38:28.196  1208  1691 I AudioFlinger: acquireWakeLock_l() AudioOut_35 status 0
+08-30 16:38:28.196  1208  1683 I AudioFlinger: acquireWakeLock_l() AudioOut_1D status 0
+08-30 16:38:28.196  1483  3911 D PowerManagerServiceEx: isScreenOnBlockedLocked
+08-30 16:38:28.197  1208  1700 I AudioFlinger: acquireWakeLock_l() AudioOut_3D status 0
+08-30 16:38:28.198  1476  9375 I AudioTrack: start(490): prior state:STATE_STOPPED
+08-30 16:38:28.199  1476  9375 E AudioTrack: start:ready startPSensor
+08-30 16:38:28.199  1476  9375 I AudioTrack: startPSensor()PSensorProviderImpl Ramp AudioTrack Start Proximity Sensor time is 40757489
+08-30 16:38:28.201  1483  3911 D PowerManagerServiceEx: isScreenOnBlockedLocked
+08-30 16:38:28.200  2346  3112 D MOTO-CRYPTO: calcSarState... 0
+08-30 16:38:28.202  1483  3912 D PowerManagerServiceEx: isScreenOnBlockedLocked
+08-30 16:38:28.203  1476  9375 W Sensors : Cannot get virtualdevice_native service
+08-30 16:38:28.203  1483  3912 D PowerManagerServiceEx: isScreenOnBlockedLocked
+08-30 16:38:28.203  1476  9375 W Sensors : Cannot get virtualdevice_native service
+08-30 16:38:28.206  2346  3112 D MOTO-CRYPTO: JNI calCutbackUsedUnisocNative_V22  mWifiCtbkUsed=56
+08-30 16:38:28.206  1186  1186 D motorola.hardware.sar@1.0-service: VendorWifi setSarScenario = 56
+08-30 16:38:28.207  1186  1186 D motorola.hardware.sar@1.0-service: VendorWifi mcc_list[13] = 404
+08-30 16:38:28.207  1186  1186 D motorola.hardware.sar@1.0-service: VendorWifi mccmnc = 40470, mcc = 404, mnc = 70
+08-30 16:38:28.207  1186  1186 D motorola.hardware.sar@1.0-service: VendorWifi find key = 106
+08-30 16:38:28.207  1186  1186 W motorola.hardware.sar@1.0-service: VendorWifi get map failed!
+08-30 16:38:28.207  1186  1186 D motorola.hardware.sar@1.0-service: sar_cmd : buf: 548898473376, used_len: 100, total_len: 100, char*size: 8
+08-30 16:38:28.207  1476  8469 D PSensorProvider: threadFunc: Exiting sensor event loop
+08-30 16:38:28.209  1476  9375 D PSensorProvider: startSensor() Ramp PSensorProvider Start Proximity startSensor time is 40757498
+08-30 16:38:28.215  1178  1178 D SensorHub: SPRD[819]batch::handle[108], flags[0], period_ns[200000000], timeout[0]
+08-30 16:38:28.218  1178  1178 D SensorHub: SPRD[763]setEnable::handle[108], enabled[1]
+08-30 16:38:28.220  1476  9375 D PSensorProvider: startSensor: Sensor 108 started
+08-30 16:38:28.220  1476  9375 D PSensorProvider: startSensor() Ramp PSensorProvider Start Proximity startSensor end time is 40757510
+08-30 16:38:28.220  1476  9375 I AudioTrack: startPSensor() PSensorProviderImpl Ramp AudioTrack Start Proximity Sensor end time is 40757510
+08-30 16:38:28.221  1476  9375 E AudioTrack: start:ready startPSensor mStartPsensor++ is 1
+08-30 16:38:28.223  1208  1979 W Permission: The package name(android) provided does not correspond to the uid 1041
+08-30 16:38:28.232  1168  1974 I EffectsFactory: EffectCreate() create_effect
+08-30 16:38:28.233  1168  1974 V DlbVolumeListener: Create Dolby Listener Effect.
+08-30 16:38:28.233  1168  1974 V DlbVolumeListener: create(): CREATED_CONTEXT 0xed040400 sessionId 4257 ioId 29 stream_type 3
+08-30 16:38:28.234  1168  1974 I DlbVolumeListener: create() Created effect Notification Listener
+08-30 16:38:28.234  1168  1974 V DlbVolumeListener: effectGetDescriptor
+08-30 16:38:28.234  1168  1974 I DlbVolumeListener: effectGetDescriptor() Returning descriptor for Notification Listener
+08-30 16:38:28.237  1168  1660 V DlbVolumeListener: effectGetDescriptor
+08-30 16:38:28.237  1168  1660 I DlbVolumeListener: effectGetDescriptor() Returning descriptor for Notification Listener
+08-30 16:38:28.238  1168  1660 V DlbVolumeListener: effectCommand
+08-30 16:38:28.238  1168  1660 V DlbVolumeListener: effectCommand(): Command EFFECT_CMD_INIT
+08-30 16:38:28.239  1168  1660 V DlbVolumeListener: effectCommand
+08-30 16:38:28.239  1168  1660 D DlbVolumeListener: effectCommand(): Command EFFECT_CMD_OFFLOAD offload=0 ioHandle=29
+08-30 16:38:28.240  1168  1974 V DlbVolumeListener: effectCommand
+08-30 16:38:28.240  1168  1974 V DlbVolumeListener: effectCommand(): Command EFFECT_CMD_SET_CONFIG
+08-30 16:38:28.241  1168  1974 V DlbVolumeListener: effectCommand
+08-30 16:38:28.241  1168  1974 V DlbVolumeListener: effectCommand(): Command EFFECT_CMD_SET_CONFIG
+08-30 16:38:28.241  1476  9379 D PSensorProvider: handleEvent:Ramp handleEvent sensor type is
+08-30 16:38:28.241  1476  9379 I PSensorProvider: Proximity sensor: Far away
+08-30 16:38:28.241  1476  9379 D PSensorProvider: parsePSensorEvent() Ramp PSensorProvider Start Proximity Sensor end time is 40757531
+08-30 16:38:28.242  1168  1974 V DlbVolumeListener: effectCommand
+08-30 16:38:28.244  1208  1979 I APM_AudioPolicyManager: startOutput portId 490
+08-30 16:38:28.244  1208  1979 I APM_AudioPolicyManager: startOutput() output 29, stream 5, session 4257
+08-30 16:38:28.244  1208  1979 I AudioPolicyManagerCustomBase: startOutputSetInt portId=490 mOutputs.size=5
+08-30 16:38:28.244  1208  1979 I AudioPolicyManagerCustomBase: startOutputSetInt out portId 490
+08-30 16:38:28.246  1208  1979 D APM_AudioPolicyManager: getNewOutputDevices selected devices {AUDIO_DEVICE_OUT_SPEAKER, @:}
+08-30 16:38:28.247  1208  1979 I APM_AudioPolicyManager: setOutputDevices caller startSource[[portId:7][io:29, fast output]] device {AUDIO_DEVICE_OUT_SPEAKER, @:} delayMs 0
+08-30 16:38:28.247  1208  1979 I APM_AudioPolicyManager: setOutputDevices caller startSource[[portId:7][io:29, fast output]] changing device to {AUDIO_DEVICE_OUT_SPEAKER, @:}
+08-30 16:38:28.288  1168  1974 V DlbVolumeListener: effectCommand
+08-30 16:38:28.290  1168  1974 D audio_hw_module: amod_create_audio_patch: enter: num sources(1) num_sinks(1) patch handle(100)
+08-30 16:38:28.291  1168  1974 D audio_hw_module: amod_create_audio_patch: Playback patch from mix handle(29) to device(0x2)
+08-30 16:38:28.296  1208  1979 I AudioPolicyManagerCustomBase: startOutputSetEnd portId=490 status=0
+08-30 16:38:28.297  1208  1979 I AudioPolicyManagerCustomBase: startOutputSetEnd out portId 490
+08-30 16:38:28.297  1208  1979 I AudioPolicyManagerCustomBase: startAudioRamp, stream 5, devices({AUDIO_DEVICE_OUT_SPEAKER, @:}),mApm->isInCall() 0,mCallEndMs 38168026, mAlarmStopMs 26081063, mRingStopMs 37568573, mMusicStartMs 0
+08-30 16:38:28.299  1183  1183 D PQenhanceHAL: sunlightRead: current ambient = 60
+08-30 16:38:28.299  1208 28970 W AidlConversionCppNdk: legacy2aidl_audio_channel_mask_t_AudioChannelLayout: no AudioChannelLayout found for legacy output audio_channel_mask_t value 0x10
+08-30 16:38:28.301  1208 11356 W AidlConversionCppNdk: legacy2aidl_audio_channel_mask_t_AudioChannelLayout: no AudioChannelLayout found for legacy output audio_channel_mask_t value 0x10
+08-30 16:38:28.303  1208  1208 W AidlConversionCppNdk: legacy2aidl_audio_channel_mask_t_AudioChannelLayout: no AudioChannelLayout found for legacy output audio_channel_mask_t value 0x10
+08-30 16:38:28.303  1483  1976 W AidlConversionCppNdk: aidl2legacy_AudioChannelLayout_audio_channel_mask_t: no legacy output audio_channel_mask_t found for AudioChannelLayout{layoutMask: 16}
+08-30 16:38:28.304  2712  2894 W AidlConversionCppNdk: aidl2legacy_AudioChannelLayout_audio_channel_mask_t: no legacy output audio_channel_mask_t found for AudioChannelLayout{layoutMask: 16}
+08-30 16:38:28.304  3806  4662 W AidlConversionCppNdk: aidl2legacy_AudioChannelLayout_audio_channel_mask_t: no legacy output audio_channel_mask_t found for AudioChannelLayout{layoutMask: 16}
+08-30 16:38:28.304  1168  1974 V DlbVolumeListener: effectCommand
+08-30 16:38:28.304  1168  1974 V DlbVolumeListener: effectCommand(): Command EFFECT_CMD_ENABLE
+08-30 16:38:28.304  1168  9310 D audio_hw_stream: sprdaudiodebug increase priority begin
+08-30 16:38:28.305  1168  9310 D audio_hw_stream: sprdaudiodebug increase priority end, ret = 0
+08-30 16:38:28.305  1168  9310 D audio_hw_stream: asm_start_output_stream: enter: app_scene(1: fast-playback) devices(0x2)
+08-30 16:38:28.305  1168  9310 D audio_hw_agdsp: agdsp_access_enable: access_ref_cnt(1)
+08-30 16:38:28.305  1168  9310 D audio_hw_agdsp: agdsp_send_msg: cmd(0x34) param(0x3ba 0x1 0x1 0)
+08-30 16:38:28.305  1168  9310 I fsm_sdg : fsm_sdg_init: entry 
+08-30 16:38:28.307  1483  2247 D SceneRecognizer: notifySceneStatusChanged: notify 1 receivers
+08-30 16:38:28.307  1168  9310 I fsm_sdg : fsm_sdg_probe:FSM audio dlopen lib success
+08-30 16:38:28.307  1168  9310 I fsm_sdg : fsm_sdg_probe: success to init FSM audio lib
+08-30 16:38:28.307  1168  9310 D FSM     : fsm_audio_query_buf_size()+, working_buf_size = 1235208
+08-30 16:38:28.307  1168  9310 D FSM     : fsm_audio_query_buf_size()+, fsadsp ver = 1.2.7.2
+08-30 16:38:28.307  1168  9310 I fsm_sdg : fsm_sdg_init: FSM Aufio Get Buf Size success
+08-30 16:38:28.307  1168  9310 D fsm_sdg : fsm_sdg_init: FSM Audio malloc 1235208 bytes
+08-30 16:38:28.307  1168  9310 D FSM     : fsm_audio_init()+ param_path=/vendor/firmware/fsmaudio_params_fast.bin, channel=2, sample_rate=48000, sample_depth=16
+08-30 16:38:28.309  1168  9310 D FSM     : fsm_audio_init(), success to get param file length=5924 payload length=5896
+08-30 16:38:28.309  1168  9310 D FSM     : FSADSP: fs_algo_set_param enter param = 0xeaec9730 size = 5924, ptr mod = 0xe29c8e28 end at 0xe2ae1ff8
+08-30 16:38:28.309  1168  9310 D FSM     : FSADSP: Preset info: 0xFA04 2002, [861130mV] [moto] [24-7-20 0:9:34], data len=5896 check sum=0x9443
+08-30 16:38:28.309  1168  9310 D FSM     : FSADSP: fs_algo_set_param check sum ok
+08-30 16:38:28.309  1168  9310 D FSM     : FSADSP: fs_algo_set_param global settings: ch_mod[2] volume[0x0000FFFF] iv_format[0]
+08-30 16:38:28.309  1168  9310 D FSM     : FSADSP: fs_algo_set_param global effect module with type 0x00000022
+08-30 16:38:28.309  1168  9310 D FSM     : FSADSP: fs_algo_set_param load effect parameters begin, module count = 9
+08-30 16:38:28.309  1168  9310 D FSM     : FSADSP: preset_data = 0x0xe2a14510 next pos = 0xe2a15c34 end = 0xe2ae1ff8
+08-30 16:38:28.309  1168  9310 D FSM     : FSADSP: switch_app_mode effect_type[32] enable[0]
+08-30 16:38:28.309  1168  9310 D FSM     : FSADSP: switch_app_mode effect_type[1] enable[1]
+08-30 16:38:28.310  1208  1208 W AidlConversionCppNdk: legacy2aidl_audio_channel_mask_t_AudioChannelLayout: no AudioChannelLayout found for legacy output audio_channel_mask_t value 0x10
+08-30 16:38:28.311  2073  9357 W AidlConversionCppNdk: aidl2legacy_AudioChannelLayout_audio_channel_mask_t: no legacy output audio_channel_mask_t found for AudioChannelLayout{layoutMask: 16}
+08-30 16:38:28.311  1168  9310 D FSM     : FSADSP: switch_app_mode effect_type[22] enable[0]
+08-30 16:38:28.311  1168  9310 D FSM     : FSADSP: switch_app_mode effect_type[20] enable[1]
+08-30 16:38:28.312  1168  9310 D FSM     : FSADSP: switch_app_mode effect_type[11] enable[0]
+08-30 16:38:28.312  1168  9310 D FSM     : FSADSP: switch_app_mode effect_type[7] enable[1]
+08-30 16:38:28.312  1168  9310 D FSM     : FSADSP: switch_app_mode effect_type[34] enable[0]
+08-30 16:38:28.312  1168  9310 D FSM     : FSADSP: switch_app_mode effect_type[29] enable[0]
+08-30 16:38:28.312  1168  9310 D FSM     : FSADSP: switch_app_mode effect_type[36] enable[0]
+08-30 16:38:28.312  1168  9310 I fsm_sdg : fsm_sdg_init: FSM Audio Init success
+08-30 16:38:28.312  1168  9310 D audio_hw_stream: asm_start_output_stream: enable fsm_audio_fast algo
+08-30 16:38:28.312  1168  9310 I fsm_sdg : fsm_sdg_updateconfig: bModuleReady = True
+08-30 16:38:28.312  1168  9310 D fsm_sdg : fsm_sdg_updateconfig: set FSM Audio Format 16 bit
+08-30 16:38:28.312  1168  9310 D FSM     : fsm_audio_update_config()+ channel=2, sample_rate=48000, sample_depth=16
+08-30 16:38:28.312  1168  9310 D audio_hw_device_manager: dmgr_select_devices: app_scene(1: fast-playback)
+08-30 16:38:28.312  1168  9310 D audio_hw_device_manager: dmgr_select_devices: out_hal_device(2: speaker) in_hal_device(0: none)
+08-30 16:38:28.312  1168  9310 E audio_hw_smartamp: smartamp_check_parameters: Invalid param mode(0) usecase(0)
+08-30 16:38:28.312  1168  9310 D audio_hw_device_manager: dmgr_enable_audio_device: audio-device: 'speaker'
+08-30 16:38:28.312  1168  9310 D audio_device_route: device_route_apply_path: apply path (0: audio-device: speaker)
+08-30 16:38:28.312  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[DAC LRCLK Select] = invert
+08-30 16:38:28.312  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[DAAO DSEL] = 1
+08-30 16:38:28.313  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[AO Mixer AOL Switch] = 1
+08-30 16:38:28.313  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[AO Mixer AOR Switch] = 1
+08-30 16:38:28.313  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[DA AOR Switch] = 1
+08-30 16:38:28.314  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[AOL EAR Sel] = EAR
+08-30 16:38:28.314  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[DAHP OS D] = 5
+08-30 16:38:28.314  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[EAR_AOL Mixer DACAOL Switch] = 1
+08-30 16:38:28.314  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[EAR Gain EAR Playback Volume] = 2
+08-30 16:38:28.314  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[Earpiece Function] = 1
+08-30 16:38:28.314  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[Speaker Function] = 1
+08-30 16:38:28.314  1168  9310 D audio_hw_device_manager: dmgr_enable_audio_route: vbc-iis: 'playback'
+08-30 16:38:28.314  1168  9310 D audio_device_route: device_route_apply_path: apply path (3: vbc-iis: playback)
+08-30 16:38:28.314  1168  9310 D audio_hw_device_manager: dmgr_enable_audio_route: vbc-iis-mux: 'only_codec_p'
+08-30 16:38:28.314  1168  9310 D audio_device_route: device_route_apply_path: apply path (1: vbc-iis-mux: only_codec_p)
+08-30 16:38:28.315  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[VBC_IIS_TX0_WD_SEL] = WD_24BIT
+08-30 16:38:28.315  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[VBC_IIS_TX1_WD_SEL] = WD_24BIT
+08-30 16:38:28.315  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[VBC_IIS_TX0_LRMOD_SEL] = RIGHT_HIGH
+08-30 16:38:28.315  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[VBC_MUX_DAC0_IIS_PORT_SEL] = VBC_IIS_PORT_IIS0
+08-30 16:38:28.316  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[VBC_MUX_DAC1_IIS_PORT_SEL] = VBC_IIS_PORT_IIS0
+08-30 16:38:28.316  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[VBC_MUX_IIS0_PORT_DO_SEL] = IIS_DO_VAL_DAC0
+08-30 16:38:28.316  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[VBC_MUX_IIS2_PORT_DO_SEL] = IIS_DO_VAL_DAC2
+08-30 16:38:28.316  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[VBC_MUX_IIS3_PORT_DO_SEL] = IIS_DO_VAL_DAC2
+08-30 16:38:28.316  1168  9310 D audio_hw_device_manager: dmgr_enable_audio_route: be-switch: 'codec_p'
+08-30 16:38:28.316  1168  9310 D audio_device_route: device_route_apply_path: apply path (2: be-switch: codec_p)
+08-30 16:38:28.316  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[ag_iis0_ext_sel_v2] = aud_4ad_iis0_da0
+08-30 16:38:28.316  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[S_NORMAL_AP01_P_CODEC SWITCH] = 1
+08-30 16:38:28.316  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[S_NORMAL_AP23_P_CODEC SWITCH] = 1
+08-30 16:38:28.317  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[S_FAST_P_CODEC SWITCH] = 1
+08-30 16:38:28.317  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[S_OFFLOAD_CODEC SWITCH] = 1
+08-30 16:38:28.317  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[S_VOICE_P_CODEC SWITCH] = 1
+08-30 16:38:28.317  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[S_VOIP_P_CODEC SWITCH] = 1
+08-30 16:38:28.317  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[S_FM_CODEC SWITCH] = 1
+08-30 16:38:28.317  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[S_LOOP_P_CODEC SWITCH] = 1
+08-30 16:38:28.317  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[S_FM_DSP_CODEC SWITCH] = 1
+08-30 16:38:28.317  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[S_VOICE_PCM_P SWITCH] = 1
+08-30 16:38:28.318  1168  9310 D audio_device_route: device_route_update_path: mixer_ctl[S_FAST_P_SMART_AMP SWITCH] = 1
+08-30 16:38:28.318  1168  9310 D audio_hw_stream: asm_start_output_stream: open pcm device card_id(0) dev_id(0)
+08-30 16:38:28.320  1168  9310 D audio_hw_platform: platform_set_audio_param: app_scene(1: fast-playback) state(0)
+08-30 16:38:28.320  1168  9310 I audio_param: param_set_parameters: adev_mode = 0
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_cal_data: enter: app_type(0) dai_id(0) volume(0) set(true) app_type_status(0)
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_cal_data: scene_id(124: Music\Handsfree\Playback)
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_struct_config: enter: app_type(0) scene_id(124: Music\Handsfree\Playback) dai_id(0)
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_struct_config: app_type(0) no need to config audio structure
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_struct_config: exit
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_cvs_config: enter: app_type(0) scene_id(124: Music\Handsfree\Playback) dai_id(0) volume(0)
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_cvs_config: app_type(0) no need to config cvs
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_cvs_config: exit
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_vbc_config: enter: app_type(0) scene_id(124: Music\Handsfree\Playback) dai_id(0)
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_vbc_config: change scene_id_vbc_playback from (-1: none) to (124: Music\Handsfree\Playback)
+08-30 16:38:28.320  1168  9310 D audio_param: param_apply_firmware_data: mixer_ctl[DSP VBC Profile Select] = [0x527c0000]
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_vbc_config: exit
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_digital_gain: enter: app_type(0) scene_id(124: Music\Handsfree\Playback) volume(0)
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_digital_gain: change scene_id_dg_playback from (-1: none) to (124: Music\Handsfree\Playback)
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_digital_gain_ctl_value: mixer_ctl[VBC DAC0 DG Set] = [25 25]
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_digital_gain: exit
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_codec_config: enter: app_type(0) scene_id(124: Music\Handsfree\Playback) volume(0)
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_codec_config: change scene_id_codec_out from (-1: none, volume 0) to (124: Music\Handsfree\Playback, volume 0)
+08-30 16:38:28.320  1168  9310 D audio_param: param_set_codec_config: output device(0x2)
+08-30 16:38:28.321  1168  9310 D audio_param: param_set_codec_config: exit
+08-30 16:38:28.321  1168  9310 D audio_param: param_set_scene_config: enter: app_type(0) mode:0 app_type_status(0x1)
+08-30 16:38:28.321  1168  9310 D audio_param: param_set_scene_config: prior_app_type is 0
+08-30 16:38:28.321  1168  9310 D audio_param: param_set_scene_config: app_type(0) no need to update scene: same value
+08-30 16:38:28.321  1168  9310 D audio_param: param_set_scene_config: exit
+08-30 16:38:28.321  1168  9310 D audio_param: param_set_cal_data: exit: app_type_status(0x1)
+08-30 16:38:28.321  1168  9310 D audio_hw_stream: asm_start_output_stream: exit: out_app_scene_ref_cnt(1)
+08-30 16:38:28.321  1168  9310 D FSM     : fsm_audio_process()+: ch:2 sample_rater:48000 sample_depth:16 interleave:1 data_size:0
+08-30 16:38:28.321  1168  9310 D FSM     : fsm_audio_process(): buf_count:0 buf_remainder:0
+08-30 16:38:28.342  1476  9375 D AudioTrack: getTimestamp_l(490): device stall time corrected using current time 40757632043654
+08-30 16:38:28.362  1168  1660 V DlbVolumeListener: effectCommand
+08-30 16:38:28.363  1168  1660 V DlbVolumeListener: Command EFFECT_CMD_SET_VOLUME: left 16777216, right 16777216
+08-30 16:38:28.364  1208  1683 D AudioMixer: setParameter(RESAMPLE, SAMPLE_RATE, 44100, channelMask 0x3)
+08-30 16:38:28.373  1218  1358 D DisplayModeController: setDesiredMode 4619827259835644672 {mode={fps=60.00 Hz, modePtr={id=0, vsyncRate=60.00 Hz, peakRefreshRate=60.00 Hz}}, emitEvent=false, force=false}
+08-30 16:38:28.380  1175  1279 D SPRDHWComposer: HWCDisplay::get_display_attribute <635>: config = 0
+08-30 16:38:28.380  1175  1279 D SPRDHWComposer: SprdDrm:: getActiveConfig: 2
+08-30 16:38:28.380  1175  1279 D SPRDHWComposer: HWCDisplay::get_display_attribute <635>: config = 2
+08-30 16:38:28.381  1175  1279 D SPRDHWComposer: SprdDrm:: getActiveConfig: 2
+08-30 16:38:28.381  1175  1279 D SPRDHWComposer: HWCDisplay::get_display_attribute <635>: config = 0
+08-30 16:38:28.381  1175  1279 I SPRDHWComposer: SprdDrm:: setActiveConfig: 0, DisplayType:0
+08-30 16:38:28.381  1175  1279 I SPRDHWComposer: Create blob_id: 181
+08-30 16:38:28.396  1192  1248 D PowerHAL: PowerSessionManager::disableSystemTopAppBoost!!
+08-30 16:38:28.413  1218  1218 D PowerHALCli: setAdpfMode: mIVendorPower setAdpfMode start
+08-30 16:38:28.413  1218  1218 D PowerHALCli: setAdpfMode: mIVendorPower setAdpfMode end
+08-30 16:38:28.413  1192  1192 D PowerHAL: PowerSessionManager::updateHintMode: mode: REFRESH_60FPS, enabled: 1
+08-30 16:38:28.414  1192  1192 D PowerHAL: profile_name = REFRESH_60FPS
+08-30 16:38:28.414  1192  1192 D PowerHAL: PowerSessionManager::updateHintMode resValue = 1
+08-30 16:38:28.442  1483  3912 D ActivityManager: Skip enqueue broadcast because no receiver with Intent { act=android.intent.action.SIG_STR flg=0x10 (has extras) }
+08-30 16:38:28.446  2073  2073 D UniResolvedNetworkType: sub 1: dataNetType Override 3
+08-30 16:38:28.605  1483  1997 D RamBoostManagerService: closeSource for /proc/stat
+08-30 16:38:28.606  1483  1997 I RamBoostManagerService: updateMotoSwapState: mIsTouching: false mIsScreenOff: false mCpuUsed: 22.590233
+08-30 16:38:28.606  1483  1997 E RamBoostManagerService: mCpuUsed: 22.590233
+08-30 16:38:28.755  1192  1248 D PowerHAL: PowerSessionManager::enableSystemTopAppBoost!!
+08-30 16:38:29.398  1483  3911 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:29.399  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:29.399  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:29.399  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:29.399  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=2: mTgid: 2073, mUid: 10240
+08-30 16:38:29.399  1192  1192 D PowerHAL: enter case CPU_LOAD_RESET, and uclampMin_High=650
+08-30 16:38:29.399  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:29.420  1483  3911 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:29.420  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:29.420  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:29.420  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:29.420  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:29.420  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:29.421  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:29.421  1192  1248 D PowerHAL: PowerSessionManager::disableSystemTopAppBoost!!
+08-30 16:38:29.422  1218  1358 D DisplayModeController: setDesiredMode 4619827259835644672 {mode={fps=90.00 Hz, modePtr={id=2, vsyncRate=90.00 Hz, peakRefreshRate=90.00 Hz}}, emitEvent=true, force=false}
+08-30 16:38:29.432  1175  1279 D SPRDHWComposer: HWCDisplay::get_display_attribute <635>: config = 2
+08-30 16:38:29.432  1175  1279 D SPRDHWComposer: SprdDrm:: getActiveConfig: 0
+08-30 16:38:29.432  1175  1279 D SPRDHWComposer: HWCDisplay::get_display_attribute <635>: config = 0
+08-30 16:38:29.433  1175  1279 D SPRDHWComposer: SprdDrm:: getActiveConfig: 0
+08-30 16:38:29.433  1175  1279 D SPRDHWComposer: HWCDisplay::get_display_attribute <635>: config = 2
+08-30 16:38:29.433  1175  1279 I SPRDHWComposer: SprdDrm:: setActiveConfig: 2, DisplayType:0
+08-30 16:38:29.433  1175  1279 I SPRDHWComposer: Create blob_id: 180
+08-30 16:38:29.442  1218  1347 W HWComposer: Ignoring duplicate VSYNC event from HWC for display 4619827259835644672 (t=40758718417000)
+08-30 16:38:29.464  1218  1218 D PowerHALCli: setAdpfMode: mIVendorPower setAdpfMode start
+08-30 16:38:29.464  1218  1218 D PowerHALCli: setAdpfMode: mIVendorPower setAdpfMode end
+08-30 16:38:29.465  1192  1192 D PowerHAL: PowerSessionManager::updateHintMode: mode: REFRESH_90FPS, enabled: 1
+08-30 16:38:29.465  1192  1192 D PowerHAL: profile_name = REFRESH_90FPS
+08-30 16:38:29.465  1192  1192 D PowerHAL: PowerSessionManager::updateHintMode resValue = 1
+08-30 16:38:29.519 21083 21083 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.facs.internal.service.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.GmsInternalApiService }
+08-30 16:38:29.529  1483  3912 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:29.529  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:29.529  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:29.529  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:29.529  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:29.529  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:29.529  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:29.555 21083 21083 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.constellation.service.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.GmsBoundBrokerService }
+08-30 16:38:29.640  1483  7015 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:29.640  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:29.640  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:29.640  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:29.640  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:29.640  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:29.640  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:29.733  2346  3112 D MOTO-CRYPTO: calcSarState... 0
+08-30 16:38:29.738  2346  3112 D MOTO-CRYPTO: JNI calCutbackUsedUnisocNative_V22  mWifiCtbkUsed=56
+08-30 16:38:29.740  1483  7015 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:29.741  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:29.741  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:29.741  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:29.741  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:29.741  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:29.741  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:29.851  1483  7015 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:29.851  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:29.851  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:29.851  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:29.851  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:29.851  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:29.851  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:29.951  1483  7015 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:29.952  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:29.952  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:29.952  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:29.952  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:29.952  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:29.952  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:30.051  1483  7015 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:30.051  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:30.051  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:30.051  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:30.051  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:30.051  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:30.052  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:30.162  1483  7015 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:30.162  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:30.162  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:30.162  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:30.162  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:30.162  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:30.162  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:30.273  1483  7015 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:30.273  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:30.273  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:30.273  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:30.273  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:30.273  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:30.273  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:30.373  1483  7015 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:30.373  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:30.373  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:30.373  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 
+08-30 16:38:30.373  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=0: mTgid: 2073, mUid: 10240
+08-30 16:38:30.373  1192  1192 D PowerHAL: enter case CPU_LOAD_UP, and uclampMin_High=650
+08-30 16:38:30.373  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283eb80 return ok!
+08-30 16:38:30.426  1483  1951 D WifiStaIfaceHidlImpl: getCachedScanData is not implemented by HIDL
+08-30 16:38:30.435  1483  1992 D NetworkAdapter: cp vowifi onCapabilitiesChanged network: 125
+08-30 16:38:30.439  2302  3075 D [N3AM]PhoneStateMonitor: onCapabilitiesChanged network: 125
+08-30 16:38:30.442  1483  1483 D WiFiBlocklistController: Wifi onCapabilitiesChanged
+08-30 16:38:30.442  1483  1483 D WiFiBlocklistController: Default net onCapabilitiesChanged
+08-30 16:38:30.442  1483  1483 D WiFiBlocklistController: updateDefaultNet:125
+08-30 16:38:30.442  1483  1483 D WiFiBlocklistController: mayUpdateNotification: shouldShow=false,UidsBlocked=false, net info=net:125,ifName=wlan0,securityType=2,isDefault=true,ssid="GM-BSNL_AGGARWAL",notificationId=0
+08-30 16:38:30.443  2183  2963 D WM-NetworkStateTracker: Network capabilities changed: [ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED LinkUpBandwidth>=13076Kbps LinkDnBandwidth>=19213Kbps TransportInfo: <SSID: <unknown ssid>, BSSID: 02:00:00:00:00:00, MAC: 02:00:00:00:00:00, IP: /192.168.1.37, Security type: 2, Supplicant state: COMPLETED, Wi-Fi standard: 11n, RSSI: -75, Link speed: 13Mbps, Tx Link speed: 13Mbps, Max Supported Tx Link speed: 150Mbps, Calculated Tx : 8Mbps, Rx Link speed: 40Mbps, Max Supported Rx Link speed: 150Mbps, Calculated Rx : 18Mbps, Frequency: 2437MHz, Net ID: -1, Metered hint: false, score: 100, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: -1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none><none>MLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>, Vendor Data: <none>> SignalStrength: -75 UnderlyingNetworks: Null]
+08-30 16:38:30.445 15489 15531 D WM-WorkConstraintsTrack: NetworkRequestConstraintController onCapabilitiesChanged callback
+08-30 16:38:30.446  3821  4555 I BugleRcsEngine: handleMessage processing message:[NOTIFY_UPTIME_IGNORE_STATE_CHANGED] with [non-null]:RcsEngineImpl reference [CONTEXT log_prefix="RcsEngineImpl[DUAL_REG]:[ff7b0caa-acf6]>Handler" thread_id=121 ]
+08-30 16:38:30.448  1476  9377 D CCodecBufferChannel: [c2.android.vorbis.decoder#794] buffers after EOS ignored (0 us)
+08-30 16:38:30.448  1476  9377 D CCodecBufferChannel: [c2.android.vorbis.decoder#794] buffers after EOS ignored (0 us)
+08-30 16:38:30.449  1476  9377 D CCodecBufferChannel: [c2.android.vorbis.decoder#794] buffers after EOS ignored (0 us)
+08-30 16:38:30.449  3821  4450 I BugleRcsEngine: Connected state: [1], networkType: [WIFI] [CONTEXT thread_id=117 ]
+08-30 16:38:30.450  1483  1951 I HalDevMgr: bestIfaceCreationProposal is null, requestIface=STA, existingIface=[name=wlan0 type=STA]
+08-30 16:38:30.451  1483  3911 D ActivityManager: Skip enqueue broadcast because no receiver with Intent { act=android.intent.action.SIG_STR flg=0x10 (has extras) }
+08-30 16:38:30.454  2073  2073 D UniResolvedNetworkType: sub 1: dataNetType Override 3
+08-30 16:38:30.455  2073  2073 D WifiSignalController: connected : true, level : 3, isDefault : true, inetCondition : 1, statusLabel : null
+08-30 16:38:30.456  1483  1774 D PowerHALManager: powerhalmanager sendHint!!!
+08-30 16:38:30.456  1192  1192 D PowerHAL: enter VendorPower::sendHint
+08-30 16:38:30.456  1192  1192 D PowerHAL: sendHint enter sendHint if():
+08-30 16:38:30.456  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f6c0 
+08-30 16:38:30.456  1192  1192 D PowerHAL: PowerHintSession sendHint hintSession and hint=2: mTgid: 2073, mUid: 10240
+08-30 16:38:30.456  1192  1192 D PowerHAL: enter case CPU_LOAD_RESET, and uclampMin_High=650
+08-30 16:38:30.456  1192  1192 D PowerHAL: sendHint got hintSession:0xb4000075a283f6c0 return ok!
+08-30 16:38:30.446  3886 10380 I ModemStats: [DataStallDetectService] onCapabilitiesChanged networkCapabilities=[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED LinkUpBandwidth>=13076Kbps LinkDnBandwidth>=19213Kbps TransportInfo: <SSID: <unknown ssid>, BSSID: 02:00:00:00:00:00, MAC: 02:00:00:00:00:00, IP: /192.168.1.37, Security type: 2, Supplicant state: COMPLETED, Wi-Fi standard: 11n, RSSI: -75, Link speed: 13Mbps, Tx Link speed: 13Mbps, Max Supported Tx Link speed: 150Mbps, Calculated Tx : 8Mbps, Rx Link speed: 40Mbps, Max Supported Rx Link speed: 150Mbps, Calculated Rx : 18Mbps, Frequency: 2437MHz, Net ID: -1, Metered hint: false, score: 100, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: -1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none><none>MLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>, Vendor Data: <none>> SignalStrength: -75 UnderlyingNetworks: Null]
+08-30 16:38:30.457  3886 10380 I ModemStats: [DataStallDetectService] onCapabilitiesChanged NET_CAPABILITY_VALIDATED=true
+08-30 16:38:30.458  3886 10380 I ModemStats: [DataStallDetectService] onCapabilitiesChanged mDataStallManager.mDataStallInstance=null
+08-30 16:38:30.460  3886 10380 I ModemStats: [DataStallDetectService] onCapabilitiesChanged mDataStallSmart5gManager.mDataStallInstance=null
+08-30 16:38:30.461  1547  8564 I NullBinder: NullBinder for android.net.action.RECOMMEND_NETWORKS triggering remote TransactionTooLargeException due to Service without Chimera impl, calling uid: 1000, calling pid: 0
+08-30 16:38:30.461  1547  8564 W .gms.persistent: Large reply transaction of 1056768 bytes, interface descriptor , code 1
