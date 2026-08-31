@@ -44,6 +44,17 @@ import 'pages/browser_page.dart';
 import 'pages/notes_page.dart';
 import 'pages/search_page.dart';
 
+  Uint8List _binarizeForOcr(Uint8List bytes) {
+    var image = img.decodeImage(bytes);
+    if (image == null) return bytes;
+
+    image = img.bakeOrientation(image);      // respect EXIF rotation before anything else
+    image = img.grayscale(image);            // drop color, keep luminance
+    image = img.normalize(image, min: 0, max: 255); // stretch contrast before thresholding
+
+    return Uint8List.fromList(img.encodePng(image));
+  }
+
 void main() async {
   await GoogleSignIn.instance.initialize(
     serverClientId: '302452809509-lbkt373gqmjlvs71hb9hp4av0dtm4fn3.apps.googleusercontent.com',
@@ -108,7 +119,8 @@ class _MyHomePageState extends State<MyHomePage> {
   String get _otpCode => _otpControllers.map((c) => c.text).join();
   List<File> _photos = [];
   final _picker = picker.ImagePicker();
-  final _recognizer = TextRecognizer(script: TextRecognitionScript.devanagiri);
+  final TextRecognizer _latinRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+  final TextRecognizer _devanagariRecognizer = TextRecognizer(script: TextRecognitionScript.devanagiri);
   AppStage appstage = AppStage.enterEmail;
   final _emailController = TextEditingController();
   bool _openedFromShare = false;
@@ -283,13 +295,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _load() async {
     final dir = await getApplicationDocumentsDirectory();
+    final numericName = RegExp(r'^\d+$');
 
     final files = dir.listSync().whereType<File>().where((f) {
       final name = p.basename(f.path);
       if (name.startsWith('profile_')) return false;
-      if (name.endsWith('.pdf')) return true;
       if (name.endsWith('profile.jpg')) return false;
       if (name.endsWith('.thumb.jpg')) return false;
+
+      final stem = p.basenameWithoutExtension(f.path);
+      if (!numericName.hasMatch(stem)) return false; // guards the int.parse in sort()
+
+      if (name.endsWith('.pdf')) return true;
       if (name.endsWith('.json')) return true;
       return name.endsWith('.jpg') || name.endsWith('.png');
     }).toList();
@@ -515,10 +532,11 @@ class _MyHomePageState extends State<MyHomePage> {
     for (final f in _otpFocusNodes) {
       f.dispose();
     }
+    _latinRecognizer.close();
+    _devanagariRecognizer.close();
     _sliderTimer?.cancel();
     _sliderController.dispose();
     _otpTimer?.cancel();
-    _recognizer.close();
     _emailController.dispose();
     _intentSub?.cancel();
     _privacyPolicyRecognizer.dispose();
@@ -624,11 +642,36 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<String> _extractText(String path) async {
     final processedPath = await _preprocessForOcr(path);
     final input = InputImage.fromFilePath(processedPath);
-    final result = await _recognizer.processImage(input);
+
+    final latinResult = await _latinRecognizer.processImage(input);
+    final devanagariResult = await _devanagariRecognizer.processImage(input);
 
     unawaited(File(processedPath).delete().catchError((_) => File(processedPath)));
 
-    return result.text;
+    return _mergeOcrResults(latinResult, devanagariResult);
+  }
+
+  String _mergeOcrResults(RecognizedText latin, RecognizedText devanagari) {
+    int nonWhitespaceCount(RecognizedText r) =>
+        r.text.replaceAll(RegExp(r'\s'), '').length;
+
+    final latinChars = nonWhitespaceCount(latin);
+    final devanagariChars = nonWhitespaceCount(devanagari);
+
+    // One script clearly dominates — the other pass was just noise on
+    // glyphs it can't read, so discard it.
+    if (latinChars > devanagariChars * 2) return latin.text;
+    if (devanagariChars > latinChars * 2) return devanagari.text;
+
+    // Comparable output from both → likely a genuinely mixed-script page
+    // (an Aadhaar/PAN card is the classic case). Merge blocks from both,
+    // ordered by vertical position so reading order roughly follows layout.
+    final blocks = [
+      ...latin.blocks.map((b) => (top: b.boundingBox.top, text: b.text)),
+      ...devanagari.blocks.map((b) => (top: b.boundingBox.top, text: b.text)),
+    ]..sort((a, b) => a.top.compareTo(b.top));
+
+    return blocks.map((b) => b.text).join('\n');
   }
 
   Future<String> _preprocessForOcr(String path) async {
@@ -641,59 +684,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return outPath;
   }
 
-  // Must be top-level (or static) since compute() runs it on a background isolate.
-  Uint8List _binarizeForOcr(Uint8List bytes) {
-    var image = img.decodeImage(bytes);
-    if (image == null) return bytes;
 
-    image = img.bakeOrientation(image);      // respect EXIF rotation before anything else
-    image = img.grayscale(image);            // drop color, keep luminance
-    image = img.normalize(image, min: 0, max: 255); // stretch contrast before thresholding
-
-    final threshold = _otsuThreshold(image); // pick a good cutoff automatically per-image
-
-    for (var y = 0; y < image.height; y++) {
-      for (var x = 0; x < image.width; x++) {
-        final v = image.getPixel(x, y).r.toInt();
-        final bw = v >= threshold ? 255 : 0;
-        image.setPixelRgb(x, y, bw, bw, bw);
-      }
-    }
-
-    return Uint8List.fromList(img.encodePng(image));
-  }
-
-  int _otsuThreshold(img.Image image) {
-    final histogram = List<int>.filled(256, 0);
-    for (var y = 0; y < image.height; y++) {
-      for (var x = 0; x < image.width; x++) {
-        histogram[image.getPixel(x, y).r.toInt()]++;
-      }
-    }
-
-    final total = image.width * image.height;
-    var sum = 0.0;
-    for (var i = 0; i < 256; i++) sum += i * histogram[i];
-
-    var sumB = 0.0, wB = 0, maxVariance = 0.0, threshold = 0;
-    for (var t = 0; t < 256; t++) {
-      wB += histogram[t];
-      if (wB == 0) continue;
-      final wF = total - wB;
-      if (wF == 0) break;
-
-      sumB += t * histogram[t];
-      final mB = sumB / wB;
-      final mF = (sum - sumB) / wF;
-      final variance = wB * wF * (mB - mF) * (mB - mF);
-
-      if (variance > maxVariance) {
-        maxVariance = variance;
-        threshold = t;
-      }
-    }
-    return threshold;
-  }
 
   Future<bool> _storeEmbedding(String dest, String text) async {
     final token = await storage.read(key: 'token');
