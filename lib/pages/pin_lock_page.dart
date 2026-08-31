@@ -42,14 +42,15 @@ class _PinLockPageState extends State<PinLockPage> {
 
   String get _enteredPin => _controllers.map((c) => c.text).join();
 
-  @override
-  void initState() {
-    super.initState();
-    _refreshLockoutStatus();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNodes[0].requestFocus();
-    });
-  }
+    @override
+    void initState() {
+      super.initState();
+      _refreshLockoutStatus();
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        FocusScope.of(context).requestFocus(_focusNodes[0]);
+      });
+    }
 
   @override
   void dispose() {
@@ -156,6 +157,7 @@ class _PinLockPageState extends State<PinLockPage> {
                           enabled: !isLockedOut && !_checking,
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
+                          textAlignVertical: TextAlignVertical.center,
                           maxLength: 1,
                           obscureText: true,
                           obscuringCharacter: '●',

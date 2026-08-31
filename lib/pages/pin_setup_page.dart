@@ -42,6 +42,12 @@ class _PinSetupPageState extends State<PinSetupPage> {
   String get _enteredPin => _controllers.map((c) => c.text).join();
 
   @override
+  void initState() {
+    super.initState();
+    if(mounted) _focusNodes[0].requestFocus();
+  }
+
+  @override
   void dispose() {
     for (final c in _controllers) {
       c.dispose();
@@ -94,7 +100,6 @@ class _PinSetupPageState extends State<PinSetupPage> {
     final isConfirmStep = _step == _SetupStep.confirm;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('App Lock')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -137,6 +142,7 @@ class _PinSetupPageState extends State<PinSetupPage> {
                         focusNode: _focusNodes[index],
                         keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
+                        textAlignVertical: TextAlignVertical.center,
                         maxLength: 1,
                         obscureText: true,
                         obscuringCharacter: '●',

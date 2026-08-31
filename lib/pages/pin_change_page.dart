@@ -33,6 +33,12 @@ class _PinChangePageState extends State<PinChangePage> {
 
   String get _entered => _controllers.map((c) => c.text).join();
 
+    @override
+    void initState() {
+      super.initState();
+      if(mounted) _focusNodes[0].requestFocus();
+    }
+
   @override
   void dispose() {
     for (final c in _controllers) {
@@ -153,6 +159,7 @@ class _PinChangePageState extends State<PinChangePage> {
                         focusNode: _focusNodes[index],
                         keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
+                        textAlignVertical: TextAlignVertical.center,
                         maxLength: 1,
                         obscureText: true,
                         obscuringCharacter: '●',
