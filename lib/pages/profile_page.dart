@@ -4,6 +4,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import '../constants.dart';
+import '../pin_service.dart';
+import 'pin_setup_page.dart';
+import 'pin_change_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, required this.userEmail});
@@ -16,6 +19,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final _picker = ImagePicker();
   File? _profileimage;
+  bool _pinEnabled = false;
 
   Future<void> _loadProfileImage() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -33,6 +37,12 @@ class _ProfilePageState extends State<ProfilePage> {
         _profileimage = files.first;
       });
     }
+  }
+
+  Future<void> _loadPinStatus() async {
+    final enabled = await pinService.isPinEnabled();
+    if (!mounted) return;
+    setState(() => _pinEnabled = enabled);
   }
 
   void _showError(String message) {
@@ -56,6 +66,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _loadProfileImage();
+    _loadPinStatus();
   }
 
   Future<void> _pickProfileImage() async {
@@ -146,6 +157,101 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<bool> _confirmCurrentPin() async {
+    final controller = TextEditingController();
+    String? error;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Confirm your PIN'),
+              content: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 6,
+                autofocus: true,
+                decoration: InputDecoration(
+                  counterText: '',
+                  errorText: error,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final ok = await pinService.verifyPin(
+                      controller.text.trim(),
+                    );
+                    if (!context.mounted) return;
+                    if (ok) {
+                      Navigator.pop(context, true);
+                    } else {
+                      setDialogState(() => error = 'Incorrect PIN');
+                    }
+                  },
+                  child: const Text('Confirm'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    return result ?? false;
+  }
+
+  Future<void> _handlePinToggle(bool value) async {
+    if (value) {
+      final created = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => const PinSetupPage()),
+      );
+      if (created == true) {
+        setState(() => _pinEnabled = true);
+      }
+    } else {
+      final confirmed = await _confirmCurrentPin();
+      if (confirmed) {
+        await pinService.disablePin();
+        setState(() => _pinEnabled = false);
+      }
+    }
+  }
+
+  Widget _buildPinSection() {
+    return Column(
+      children: [
+        SwitchListTile(
+          title: const Text('App Lock'),
+          subtitle: const Text('Require a PIN to open DocEzy'),
+          value: _pinEnabled,
+          onChanged: _handlePinToggle,
+        ),
+        if (_pinEnabled)
+          ListTile(
+            leading: const Icon(Icons.password),
+            title: const Text('Change PIN'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PinChangePage()),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -202,7 +308,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
             _buildWidgetPromo(),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 16),
+
+            _buildPinSection(),
+
+            const SizedBox(height: 24),
 
             // Logout Button
             SizedBox(

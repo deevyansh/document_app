@@ -43,6 +43,9 @@ import 'pages/favourite_page.dart';
 import 'pages/browser_page.dart';
 import 'pages/notes_page.dart';
 import 'pages/search_page.dart';
+import 'pin_service.dart';
+import 'pages/pin_lock_page.dart';
+import 'pages/pin_setup_page.dart';
 
   Uint8List _binarizeForOcr(Uint8List bytes) {
     var image = img.decodeImage(bytes);
@@ -121,6 +124,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final _picker = picker.ImagePicker();
   final TextRecognizer _latinRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
   final TextRecognizer _devanagariRecognizer = TextRecognizer(script: TextRecognitionScript.devanagiri);
+  final _modelManager = OnDeviceTranslatorModelManager();
   AppStage appstage = AppStage.enterEmail;
   final _emailController = TextEditingController();
   bool _openedFromShare = false;
@@ -135,6 +139,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final ScrollController _gridController = ScrollController();
   bool _googleLoading = false;
   late final TapGestureRecognizer _privacyPolicyRecognizer;
+  bool _pinUnlockedThisSession = false;
 
   void _showError(String message) {
     if (!mounted) return;
@@ -159,6 +164,50 @@ class _MyHomePageState extends State<MyHomePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.green),
     );
+  }
+
+  Future<bool> _translationModelsReady() async {
+    final hindiReady = await _modelManager.isModelDownloaded(
+      TranslateLanguage.hindi.bcpCode,
+    );
+    final englishReady = await _modelManager.isModelDownloaded(
+      TranslateLanguage.english.bcpCode,
+    );
+    return hindiReady && englishReady;
+  }
+
+  Future<void> _ensureTranslationModels() async {
+    try {
+      if (await _translationModelsReady()) return;
+
+      if (!await _hasInternet()) {
+        _showError("Please turn on your network to download language models.");
+        return;
+      }
+
+      final hindiReady = await _modelManager.isModelDownloaded(
+        TranslateLanguage.hindi.bcpCode,
+      );
+      final englishReady = await _modelManager.isModelDownloaded(
+        TranslateLanguage.english.bcpCode,
+      );
+
+      if (!hindiReady) {
+        await _modelManager.downloadModel(
+          TranslateLanguage.hindi.bcpCode,
+          isWifiRequired: false,
+        );
+      }
+      if (!englishReady) {
+        await _modelManager.downloadModel(
+          TranslateLanguage.english.bcpCode,
+          isWifiRequired: false,
+        );
+      }
+    } catch (e) {
+      debugPrint('Translation model download failed: $e');
+      _showError("Please turn on your network to download language models.");
+    }
   }
 
 
@@ -200,7 +249,7 @@ class _MyHomePageState extends State<MyHomePage> {
       final data = jsonDecode(res.body);
       await storage.write(key: "token", value: data["access_token"]);
       await storage.write(key: "email", value: data["email"]);
-      
+
       final dir = await getApplicationDocumentsDirectory();
       final files = dir
           .listSync()
@@ -291,7 +340,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  
+
 
   Future<void> _load() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -375,7 +424,49 @@ class _MyHomePageState extends State<MyHomePage> {
     final token = await storage.read(key: 'token');
     if (token == null) {
       setState(() => appstage = AppStage.enterEmail);
-    } else {
+      return;
+    }
+  }
+
+  Future<void> _handleForgotPin() async {
+    if (!await _hasInternet()) {
+      _showError("Please turn on your network to reset your PIN.");
+      return;
+    }
+    final email = await storage.read(key: 'email');
+    if (email == null) {
+      _showError("No account email found. Please log in again.");
+      return;
+    }
+
+    final res = await _safePost('/get-otp', {'email': email});
+    if (res == null) return;
+    if (!mounted) return;
+
+    final verified = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) =>
+          _ForgotPinOtpDialog(email: email, safePost: _safePost),
+    );
+
+    if (verified != true) return;
+
+    await pinService.clearPin();
+    if (!mounted) return;
+
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const PinSetupPage(
+          title: 'Set a new PIN',
+          subtitle: 'Choose a new 4-digit PIN to lock DocEzy',
+        ),
+      ),
+    );
+
+    if (created == true) {
+      _pinUnlockedThisSession = true;
       setState(() => appstage = AppStage.document);
     }
   }
@@ -412,24 +503,24 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       };
     _initialize();
-    
+
   }
 
-  
+
 
   void _setupWidgetChannel() {
     methodChannel.setMethodCallHandler((call) async {
       if (call.method == "onWidgetLaunch") {
         final String action = call.arguments as String;
         if (action == "search") {
-          Navigator.of(context).popUntil((route) => route.isFirst);  
+          Navigator.of(context).popUntil((route) => route.isFirst);
           _changeToQueryScreen();
         } else if (action == "voice_search") {
-          Navigator.of(context).popUntil((route) => route.isFirst);  
+          Navigator.of(context).popUntil((route) => route.isFirst);
           _changeToQueryScreen(startListening: true);
         }
         else if(action == "camera"){
-          Navigator.of(context).popUntil((route) => route.isFirst);  
+          Navigator.of(context).popUntil((route) => route.isFirst);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _scanDocument();
           });
@@ -474,7 +565,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _initialize() async {
     _setupWidgetChannel();
-
+    unawaited(_ensureTranslationModels());
     _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((value) async {
       if (value.isNotEmpty) {
         if (!mounted) return;
@@ -494,33 +585,21 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
 
-    await _load();
-    await _checktoken();
-    await _loadProfileImage();
-    await _checkForUpdate(); 
+    if(_pinUnlockedThisSession || !await pinService.isPinEnabled()){
+        _pinUnlockedThisSession = true;
+        if(await storage.read(key: 'token') == null){
+            appstage=AppStage.enterEmail;
+        }
+        else{
+            _pinunlocked();
+        }
+     }
 
-    final String? action = await methodChannel.invokeMethod<String>(
-      "getLaunchAction",
-    );
-    if (action == "search") {
-      Navigator.of(context).popUntil((route) => route.isFirst);
-      _changeToQueryScreen();
-    } else if (action == "voice_search") {
-      Navigator.of(context).popUntil((route) => route.isFirst);
-      _changeToQueryScreen(startListening: true);
-    }
-    else if(action == "camera"){
-      Navigator.of(context).popUntil((route) => route.isFirst);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scanDocument();
-      });
-    }
-    else if(action == "notes"){
-      Navigator.of(context).popUntil((route) => route.isFirst);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _openNotes();
-      });
-    }
+    await _load();
+    await _loadProfileImage();
+    await _checkForUpdate();
+
+
     _appAlreadyRunning = true;
   }
 
@@ -596,7 +675,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  
+
   Future<String> _extractPdfocrText(String path) async {
     final doc = await pdfx.PdfDocument.openFile(path);
     final page = await doc.getPage(1);
@@ -1182,6 +1261,36 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
 
+  void _pinunlocked() async{
+      setState((){
+         appstage=AppStage.document;
+      });
+      final String? action = await methodChannel.invokeMethod<String>(
+        "getLaunchAction",
+      );
+
+      if (action == "search") {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        _changeToQueryScreen();
+      } else if (action == "voice_search") {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        _changeToQueryScreen(startListening: true);
+      }
+      else if(action == "camera"){
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scanDocument();
+        });
+      }
+      else if(action == "notes"){
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _openNotes();
+        });
+      }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     if (_openedFromShare) {
@@ -1214,13 +1323,23 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       );
     }
+    if (!_pinUnlockedThisSession) {
+        return PinLockPage(
+          onUnlocked: () {
+            _pinUnlockedThisSession = true;
+            _pinunlocked();
+          },
+          onForgotPin: _handleForgotPin,
+        );
+    }
     if (appstage == AppStage.enterEmail) {
       return _buildEmailScreen(context);
     } else if (appstage == AppStage.enterOtp) {
       return _buildOtpScreen(context);
-    } else {
+    }
+    else {
       return _buildDocument(context);
-    } 
+    }
   }
 
   Widget _buildEmailScreen(BuildContext context) {
@@ -1397,7 +1516,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
-  
+
 
   Widget _buildOtpScreen(BuildContext context) {
     return  PopScope(
@@ -1587,7 +1706,7 @@ class _MyHomePageState extends State<MyHomePage> {
       await storage.delete(key: 'token');
       setState(() {
         appstage = AppStage.enterEmail;
-      
+
       });
     } else {
       ScaffoldMessenger.of(
@@ -2059,6 +2178,108 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  
 
+
+}
+
+/// OTP entry dialog used by the forgot-PIN flow. Reuses the same
+/// /get-otp + /verify-otp endpoints the login screen uses, against the
+/// account's already-registered email, so resetting the PIN doesn't need
+/// a separate verification channel.
+class _ForgotPinOtpDialog extends StatefulWidget {
+  final String email;
+  final Future<http.Response?> Function(
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? extraHeaders,
+  })
+  safePost;
+
+  const _ForgotPinOtpDialog({required this.email, required this.safePost});
+
+  @override
+  State<_ForgotPinOtpDialog> createState() => _ForgotPinOtpDialogState();
+}
+
+class _ForgotPinOtpDialogState extends State<_ForgotPinOtpDialog> {
+  final _otpController = TextEditingController();
+  String? _error;
+  bool _verifying = false;
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _verify() async {
+    setState(() {
+      _verifying = true;
+      _error = null;
+    });
+
+    final res = await widget.safePost('/verify-otp', {
+      'email': widget.email,
+      'otp': _otpController.text.trim(),
+    });
+
+    if (res == null) {
+      if (!mounted) return;
+      setState(() => _verifying = false);
+      return;
+    }
+
+    final data = jsonDecode(res.body);
+    if (data["success"] == true) {
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } else {
+      if (!mounted) return;
+      setState(() {
+        _verifying = false;
+        _error = data["reason"] ?? "Incorrect OTP";
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Verify your email'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Enter the OTP sent to ${widget.email}'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _otpController,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            autofocus: true,
+            decoration: InputDecoration(
+              counterText: '',
+              errorText: _error,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _verifying ? null : _verify,
+          child: _verifying
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Verify'),
+        ),
+      ],
+    );
+  }
 }

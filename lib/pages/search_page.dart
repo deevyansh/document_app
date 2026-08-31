@@ -36,6 +36,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
     List<File> _querylimitphotos=[];
     int _focusAttempts = 0;
     bool _focusAchieved = false;
+    String _aftersearchshowtext="No Results Found";
 
     bool _loadMore=false;
 
@@ -82,7 +83,6 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
     void initState() {
         super.initState();
         WidgetsBinding.instance.addObserver(this);
-        _ensureHindiModel();
         WidgetsBinding.instance.addPostFrameCallback((_) {
         _attemptFocus();
         });
@@ -149,18 +149,6 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         }
     }
 
-    Future<void> _ensureHindiModel() async {
-        final downloaded = await _modelManager.isModelDownloaded(
-        TranslateLanguage.hindi.bcpCode,
-        );
-        if (!downloaded) {
-        await _modelManager.downloadModel(
-            TranslateLanguage.hindi.bcpCode,
-            isWifiRequired: false, // let it use mobile data too
-        );
-        }
-    }
-
     void _showError(String message) {
         if (!mounted) return;
 
@@ -191,22 +179,25 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
                 headers: {'Content-Type': 'application/json', ...?extraHeaders},
                 body: jsonEncode(body),
             )
-            .timeout(const Duration(seconds: 30));
-
+            .timeout(const Duration(seconds: 15));
         if (res.statusCode >= 500) {
             _showError("Server is temporarily unavailable. Please try again.");
             return null;
         }
         return res;
         } on SocketException {
-        _showError("No internet connection.");
+            debugPrint('🔥 SOCKET ERROR');
+            _showError("No internet connection.");
         return null;
         } on TimeoutException {
-        _showError("Request timed out. Please try again.");
+            debugPrint('🔥 TIMEOUT ERROR');
+
+            _showError("Request timed out. Please try again.");
         return null;
         } catch (e) {
-        _showError("Something went wrong.");
-        return null;
+             debugPrint('🔥 something ERROR');
+            _showError("Something went wrong.");
+            return null;
         }
     }
 
@@ -228,51 +219,9 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         }); // Limit to max 5
     }
 
-    bool _containsHindi(String text) {
-        return RegExp(r'[\u0900-\u097F]').hasMatch(text);
-    }
-
     Future<String?> _transliterate(String text) async {
         if (text.trim().isEmpty) return null;
-
-        if (_containsHindi(text)) {
-            return await _hindiToEnglishTransliteration(text);
-        } else {
-            return await _englishToHindiTransliteration(text);
-        }
-    }
-
-    Future<String?> _englishToHindiTransliteration(String text) async {
-        if (text.trim().isEmpty) return null;
-
-        try {
-            final uri = Uri.parse(
-            'https://inputtools.google.com/request'
-            '?text=${Uri.encodeComponent(text)}'
-            '&itc=hi-t-i0-und'
-            '&num=1&cp=0&cs=1&ie=utf-8&oe=utf-8',
-            );
-
-            final res = await http
-                .get(uri)
-                .timeout(const Duration(seconds: 3));
-
-            if (res.statusCode != 200) return null;
-
-            final data = jsonDecode(res.body);
-
-            if (data[0] == "SUCCESS") {
-            final suggestions = data[1][0][1] as List;
-
-            if (suggestions.isNotEmpty) {
-                return suggestions.first as String;
-            }
-            }
-        } catch (e) {
-            print("English → Hindi transliteration failed: $e");
-        }
-
-        return null;
+        return await _hindiToEnglishTransliteration(text);
     }
 
     Future<String?> _hindiToEnglishTransliteration(String text) async {
@@ -294,6 +243,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
             }
         } catch (e) {
             print("transliteration failed: $e");
+            return null;
         }
         return null;
     }
@@ -311,12 +261,10 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
             _isSearching=true;
             _loadMore=false;
         });
-        final sw = Stopwatch()..start();
         final token = await storage.read(key: 'token');
         if (token == null) return;
         final raw = _queryController.text.trim();
         final terms = <String>{raw};
-
         if (await _translationModelsReady()) {
             final results = await Future.wait([
                 _enToHi.translateText(raw),
@@ -326,10 +274,12 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         }
 
         final translit = await _transliterate(raw);
-        if(!terms.contains(translit)){
-            terms.add(translit!);
-        }
 
+        if(translit!=null){
+            if(!terms.contains(translit)){
+                terms.add(translit!);
+            }
+        }
         final combined = terms.join(' ');
 
         String? x;
@@ -346,10 +296,17 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
             extraHeaders: {'Authorization': 'Bearer $token'},
         );
         if (res == null) {
+            setState((){
+                _isSearching=false;
+                _hasSearched=true;
+                _queryphotos.clear();
+                _querylimitphotos.clear();
+                _aftersearchshowtext="No Internet Connection";
+            });
             return;
         }
         final data = jsonDecode(res.body);
-            await _loadqueryphotos(data["results"]);
+        await _loadqueryphotos(data["results"]);
         setState((){
             _isSearching=false;
             _hasSearched=true;
@@ -636,13 +593,13 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
                             ),
                         )
                         : _queryphotos.isEmpty
-                            ? const Center(
+                            ? Center(
                                 child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                     Icon(Icons.search_off, size: 80, color: Colors.grey),
                                     SizedBox(height: 16),
-                                    Text('No results found', style: TextStyle(fontSize: 18)),
+                                    Text(_aftersearchshowtext, style: TextStyle(fontSize: 18)),
                                 ],
                                 ),
                             )
@@ -693,7 +650,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
                                 ],
                                 ),
                             ),
-                            
+
             ),
             ],
         ),
