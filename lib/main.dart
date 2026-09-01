@@ -14,10 +14,9 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:flutter/services.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:document_app/main.dart';
-import 'package:pdfx/pdfx.dart' as pdfx;
-import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
+import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
+
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -46,17 +45,8 @@ import 'pages/search_page.dart';
 import 'pin_service.dart';
 import 'pages/pin_lock_page.dart';
 import 'pages/pin_setup_page.dart';
-
-  Uint8List _binarizeForOcr(Uint8List bytes) {
-    var image = img.decodeImage(bytes);
-    if (image == null) return bytes;
-
-    image = img.bakeOrientation(image);      // respect EXIF rotation before anything else
-    image = img.grayscale(image);            // drop color, keep luminance
-    image = img.normalize(image, min: 0, max: 255); // stretch contrast before thresholding
-
-    return Uint8List.fromList(img.encodePng(image));
-  }
+import 'store_service.dart';
+import 'merge_service.dart';
 
 void main() async {
   await GoogleSignIn.instance.initialize(
@@ -97,10 +87,10 @@ class MyHomePage extends StatefulWidget {
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MyHomePage> createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class MyHomePageState extends State<MyHomePage> {
   final PageController _sliderController = PageController();
   Timer? _sliderTimer;
   int _currentSlide = 0;
@@ -122,8 +112,6 @@ class _MyHomePageState extends State<MyHomePage> {
   String get _otpCode => _otpControllers.map((c) => c.text).join();
   List<File> _photos = [];
   final _picker = picker.ImagePicker();
-  final TextRecognizer _latinRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-  final TextRecognizer _devanagariRecognizer = TextRecognizer(script: TextRecognitionScript.devanagiri);
   final _modelManager = OnDeviceTranslatorModelManager();
   AppStage appstage = AppStage.enterEmail;
   final _emailController = TextEditingController();
@@ -140,6 +128,9 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _googleLoading = false;
   late final TapGestureRecognizer _privacyPolicyRecognizer;
   bool _pinUnlockedThisSession = false;
+  late final StoreService _storeService = StoreService(
+    onError: _showError,
+  );
 
   void _showError(String message) {
     if (!mounted) return;
@@ -276,36 +267,6 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<http.Response?> _safePost(
-    String path,
-    Map<String, dynamic> body, {
-    Map<String, String>? extraHeaders,
-  }) async {
-    try {
-      final res = await http
-          .post(
-            Uri.parse('$baseUrl$path'),
-            headers: {'Content-Type': 'application/json', ...?extraHeaders},
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      if (res.statusCode >= 500) {
-        _showError("Server is temporarily unavailable. Please try again.");
-        return null;
-      }
-      return res;
-    } on SocketException {
-      _showError("No internet connection.");
-      return null;
-    } on TimeoutException {
-      _showError("Request timed out. Please try again.");
-      return null;
-    } catch (e) {
-      _showError("Something went wrong.");
-      return null;
-    }
-  }
 
   Future<void> _checkForUpdate() async {
     try {
@@ -320,6 +281,45 @@ class _MyHomePageState extends State<MyHomePage> {
     } catch (e) {
       print("Update check failed: $e");
     }
+  }
+
+  Future<void> _importFromPath(String filepath) async {
+      final ext = await _storeService.detectExt(filepath);
+      final isPdf = (ext == 'pdf');
+      if (ext == "unknown") {
+        _showError("Import is not supported for this file");
+        return;
+      }
+      final dir = await getApplicationDocumentsDirectory();
+      final dest = p.join(
+        dir.path,
+        '${DateTime.now().millisecondsSinceEpoch}.$ext',
+      );
+      await File(filepath).copy(dest);
+      if (isPdf) {
+        try {
+          await _storeService.makePdfThumb(dest);
+        } catch (e) {
+          _showError("PDF thumb is not generated. $e");
+        }
+      }
+      await _load();
+
+      if (!isPdf) {
+        final text = await _storeService.extractText(dest);
+        if (!await _storeService.storeEmbedding(dest, text)) {
+          await File(dest).delete();
+          await _load();
+          return;
+        }
+      } else {
+        final text = await _storeService.extractPdfText(dest);
+        if (!await _storeService.storeEmbedding(dest, text)) {
+          await File(dest).delete();
+          await _load();
+          return;
+        }
+      }
   }
 
   Future<void> _loadProfileImage() async {
@@ -367,6 +367,37 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     setState(() => _photos = files);
+  }
+
+   Future<http.Response?> _safePost(
+      String path,
+      Map<String, dynamic> body, {
+      Map<String, String>? extraHeaders,
+    }) async {
+      try {
+        final res = await http
+            .post(
+              Uri.parse('$baseUrl$path'),
+              headers: {'Content-Type': 'application/json', ...?extraHeaders},
+              body: jsonEncode(body),
+            )
+            .timeout(const Duration(seconds: 30));
+
+        if (res.statusCode >= 500) {
+          _showError("Server is temporarily unavailable. Please try again.");
+          return null;
+        }
+        return res;
+      } on SocketException {
+        _showError("No internet connection.");
+        return null;
+      } on TimeoutException {
+        _showError("Request timed out. Please try again.");
+        return null;
+      } catch (e) {
+        _showError("Something went wrong.");
+        return null;
+      }
   }
 
   Future<void> _otpsubmit() async {
@@ -611,8 +642,7 @@ class _MyHomePageState extends State<MyHomePage> {
     for (final f in _otpFocusNodes) {
       f.dispose();
     }
-    _latinRecognizer.close();
-    _devanagariRecognizer.close();
+    _storeService.dispose();
     _sliderTimer?.cancel();
     _sliderController.dispose();
     _otpTimer?.cancel();
@@ -620,194 +650,6 @@ class _MyHomePageState extends State<MyHomePage> {
     _intentSub?.cancel();
     _privacyPolicyRecognizer.dispose();
     super.dispose();
-  }
-
-  Future<String> _detectExt(String filepath) async {
-    final bytes = await File(filepath).openRead(0, 12).first;
-    // PDF: %PDF
-    if (bytes.length >= 4 &&
-        bytes[0] == 0x25 &&
-        bytes[1] == 0x50 &&
-        bytes[2] == 0x44 &&
-        bytes[3] == 0x46)
-      return 'pdf';
-    // JPEG: FF D8 FF
-    if (bytes.length >= 3 &&
-        bytes[0] == 0xFF &&
-        bytes[1] == 0xD8 &&
-        bytes[2] == 0xFF)
-      return 'jpg';
-    // PNG: 89 50 4E 47
-    if (bytes.length >= 4 &&
-        bytes[0] == 0x89 &&
-        bytes[1] == 0x50 &&
-        bytes[2] == 0x4E &&
-        bytes[3] == 0x47)
-      return 'png';
-    return 'unknown';
-  }
-
-  Future<void> _makePdfThumb(String pdfPath) async {
-    pdfx.PdfDocument? doc;
-    try {
-      doc = await pdfx.PdfDocument.openFile(
-        pdfPath,
-      ).timeout(const Duration(seconds: 10));
-
-      final page = await doc.getPage(1);
-      final img = await page.render(width: page.width, height: page.height);
-      await page.close();
-
-      if (img == null || img.bytes.isEmpty) {
-        _showError("PDF image is empty");
-        return;
-      }
-
-      final thumbPath = '$pdfPath.thumb.jpg';
-      await File(thumbPath).writeAsBytes(img.bytes);
-      await FileImage(File(thumbPath)).evict(); // clear stale image cache
-    } on TimeoutException {
-      _showError("PDF not opened (timed out)");
-    } catch (e) {
-      _showError("PDF thumb failed: $e");
-    } finally {
-      await doc?.close();
-    }
-  }
-
-
-  Future<String> _extractPdfocrText(String path) async {
-    final doc = await pdfx.PdfDocument.openFile(path);
-    final page = await doc.getPage(1);
-    final img = await page.render(
-      width: page.width * 2,
-      height: page.height * 2,
-    );
-    await page.close();
-    await doc.close();
-
-    final dir = await getApplicationDocumentsDirectory();
-    final tmp = p.join(
-      dir.path,
-      'tmp_ocr_${DateTime.now().millisecondsSinceEpoch}.png',
-    );
-    await File(tmp).writeAsBytes(img!.bytes);
-
-    final text = await _extractText(tmp);
-    await File(tmp).delete();
-    return text;
-  }
-
-  Future<String> _extractPdfText(String path) async {
-    sf.PdfDocument? document;
-    try {
-      document = sf.PdfDocument(inputBytes: await File(path).readAsBytes());
-      final text = sf.PdfTextExtractor(document).extractText();
-      if (text.trim().length >= 20) return text;
-    } catch (e) {
-      _showError("PDF cannot be opened. $e");
-    } finally {
-      document?.dispose();
-    }
-
-    try {
-      return await _extractPdfocrText(path);
-    } catch (e) {
-      _showError("PDF OCR failed, cannot read the pdf. $e");
-      return "";
-    }
-  }
-
-  Future<String> _extractText(String path) async {
-    final processedPath = await _preprocessForOcr(path);
-    final input = InputImage.fromFilePath(processedPath);
-
-    final latinResult = await _latinRecognizer.processImage(input);
-    final devanagariResult = await _devanagariRecognizer.processImage(input);
-
-    unawaited(File(processedPath).delete().catchError((_) => File(processedPath)));
-
-    return _mergeOcrResults(latinResult, devanagariResult);
-  }
-
-  String _mergeOcrResults(RecognizedText latin, RecognizedText devanagari) {
-    int nonWhitespaceCount(RecognizedText r) =>
-        r.text.replaceAll(RegExp(r'\s'), '').length;
-
-    final latinChars = nonWhitespaceCount(latin);
-    final devanagariChars = nonWhitespaceCount(devanagari);
-
-    // One script clearly dominates — the other pass was just noise on
-    // glyphs it can't read, so discard it.
-    if (latinChars > devanagariChars * 2) return latin.text;
-    if (devanagariChars > latinChars * 2) return devanagari.text;
-
-    // Comparable output from both → likely a genuinely mixed-script page
-    // (an Aadhaar/PAN card is the classic case). Merge blocks from both,
-    // ordered by vertical position so reading order roughly follows layout.
-    final blocks = [
-      ...latin.blocks.map((b) => (top: b.boundingBox.top, text: b.text)),
-      ...devanagari.blocks.map((b) => (top: b.boundingBox.top, text: b.text)),
-    ]..sort((a, b) => a.top.compareTo(b.top));
-
-    return blocks.map((b) => b.text).join('\n');
-  }
-
-  Future<String> _preprocessForOcr(String path) async {
-    final bytes = await File(path).readAsBytes();
-    final processedBytes = await compute(_binarizeForOcr, bytes);
-
-    final tempDir = await getTemporaryDirectory();
-    final outPath = '${tempDir.path}/ocr_${DateTime.now().microsecondsSinceEpoch}.png';
-    await File(outPath).writeAsBytes(processedBytes);
-    return outPath;
-  }
-
-
-
-  Future<bool> _storeEmbedding(String dest, String text) async {
-    final token = await storage.read(key: 'token');
-    if (token == null) return false;
-    final res = await _safePost(
-      "/send-document",
-      {'doc_path': dest, 'text': text},
-      extraHeaders: {'Authorization': 'Bearer $token'},
-    );
-    if (res == null) {
-      return false;
-    }
-    return true;
-  }
-
-  Future<String> _buildPdfFromImages(
-    List<String> imagePaths,
-    String dest,
-  ) async {
-    final doc = sf.PdfDocument();
-    doc.pageSettings.size = sf.PdfPageSize.a4; // every page identical
-    doc.pageSettings.margins.all = 0;
-
-    for (final imgPath in imagePaths) {
-      final page = doc.pages.add();
-      final image = sf.PdfBitmap(await File(imgPath).readAsBytes());
-      final pageSize = page.getClientSize();
-
-      // fit the image inside the A4 page, preserving aspect ratio
-      final scale =
-          (pageSize.width / image.width) < (pageSize.height / image.height)
-          ? pageSize.width / image.width
-          : pageSize.height / image.height;
-      final w = image.width * scale;
-      final h = image.height * scale;
-      final x = (pageSize.width - w) / 2;
-      final y = (pageSize.height - h) / 2;
-
-      page.graphics.drawImage(image, Rect.fromLTWH(x, y, w, h));
-    }
-
-    await File(dest).writeAsBytes(await doc.save());
-    doc.dispose();
-    return dest;
   }
 
   void _startOtpTimer() {
@@ -835,45 +677,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _resendOtp() {
     _emailsubmit();
-  }
-
-  Future<void> _importFromPath(String filepath) async {
-    final ext = await _detectExt(filepath);
-    final isPdf = (ext == 'pdf');
-    if (ext == "unknown") {
-      _showError("Import is not supported for this file");
-      return;
-    }
-    final dir = await getApplicationDocumentsDirectory();
-    final dest = p.join(
-      dir.path,
-      '${DateTime.now().millisecondsSinceEpoch}.$ext',
-    );
-    await File(filepath).copy(dest);
-    if (isPdf) {
-      try {
-        await _makePdfThumb(dest);
-      } catch (e) {
-        _showError("PDF thumb is not generated. $e");
-      }
-    }
-    await _load();
-
-    if (!isPdf) {
-      final text = await _extractText(dest);
-      if (!await _storeEmbedding(dest, text)) {
-        await File(dest).delete();
-        await _load();
-        return;
-      }
-    } else {
-      final text = await _extractPdfText(dest);
-      if (!await _storeEmbedding(dest, text)) {
-        await File(dest).delete();
-        await _load();
-        return;
-      }
-    }
   }
 
   Future<bool> _hasInternet() async {
@@ -1098,11 +901,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final dir = await getApplicationDocumentsDirectory();
     final dest = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}.pdf');
-    await _buildPdfFromImages(images, dest);   // your existing function, unchanged
-    await _makePdfThumb(dest);
+    await buildPdfFromImages(images, dest);   // your existing function, unchanged
+    await _storeService.makePdfThumb(dest);
     await _load();
-    final text = await _extractPdfText(dest);
-    await _storeEmbedding(dest, text);
+    final text = await _storeService.extractPdfText(dest);
+    await _storeService.storeEmbedding(dest, text);
   }
 
 
@@ -1149,93 +952,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final dir = await getApplicationDocumentsDirectory();
     final dest = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}.pdf');
-    await _buildIdCardPdf(frontPath, backPath, dest);
-    await _makePdfThumb(dest);
+    await buildIdCardPdf(frontPath, backPath, dest);
+    await _storeService.makePdfThumb(dest);
     await _load();
-    final text = await _extractPdfText(dest);
-    await _storeEmbedding(dest, text);
-  }
-
-  Future<String> _buildIdCardPdf(
-    String frontPath,
-    String? backPath,
-    String dest,
-  ) async {
-    final doc = sf.PdfDocument();
-    doc.pageSettings.size = sf.PdfPageSize.a4;
-    doc.pageSettings.margins.all = 20;
-    final page = doc.pages.add();
-    final pageSize = page.getClientSize();
-
-    final frontImage = sf.PdfBitmap(await File(frontPath).readAsBytes());
-
-    const topGap = 50.0;
-    const middleGap = 200.0;
-    const bottomGap = 50.0;
-
-    // Fixed height every ID image box will use, regardless of source resolution.
-    const fixedImageHeight = 210.0;
-
-    final maxAllowedWidth = pageSize.width * 0.75;
-
-    void drawInBox(
-      sf.PdfBitmap img,
-      double boxTop,
-      double boxWidth,
-      double boxHeight,
-    ) {
-      // Fit the image inside the box (preserving its own aspect ratio),
-      // then center it within that fixed-size box.
-      final widthScale = boxWidth / img.width;
-      final heightScale = boxHeight / img.height;
-      final scale = widthScale < heightScale ? widthScale : heightScale;
-
-      final drawW = img.width * scale;
-      final drawH = img.height * scale;
-      final x = (pageSize.width - drawW) / 2;
-      final y = boxTop + (boxHeight - drawH) / 2;
-
-      page.graphics.drawImage(img, Rect.fromLTWH(x, y, drawW, drawH));
-    }
-
-    if (backPath == null) {
-      // Single image: box width = its natural width at fixedImageHeight,
-      // capped at 75% of the page.
-      final naturalWidth =
-          (frontImage.width / frontImage.height) * fixedImageHeight;
-      final boxWidth =
-          naturalWidth < maxAllowedWidth ? naturalWidth : maxAllowedWidth;
-
-      drawInBox(frontImage, topGap, boxWidth, fixedImageHeight);
-    } else {
-      final backImage = sf.PdfBitmap(await File(backPath).readAsBytes());
-
-      // Each image's natural width at the fixed height.
-      final frontNaturalWidth =
-          (frontImage.width / frontImage.height) * fixedImageHeight;
-      final backNaturalWidth =
-          (backImage.width / backImage.height) * fixedImageHeight;
-
-      // Shared width for BOTH images: the larger of the two natural widths
-      // (so neither gets unnecessarily shrunk below its own natural size),
-      // but never exceeding 75% of the page width.
-      var commonWidth = frontNaturalWidth > backNaturalWidth
-          ? frontNaturalWidth
-          : backNaturalWidth;
-      if (commonWidth > maxAllowedWidth) {
-        commonWidth = maxAllowedWidth;
-      }
-
-      final frontTop = topGap;
-      final backTop = topGap + fixedImageHeight + middleGap;
-
-      drawInBox(frontImage, frontTop, commonWidth, fixedImageHeight);
-      drawInBox(backImage, backTop, commonWidth, fixedImageHeight);
-    }
-
-    await File(dest).writeAsBytes(await doc.save());
-    doc.dispose();
-    return dest;
+    final text = await _storeService.extractPdfText(dest);
+    await _storeService.storeEmbedding(dest, text);
   }
 
   Future<bool> _confirmScanBack() async {

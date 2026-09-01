@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import '../merge_service.dart';
 
 class GroupedFiles {
   final String title;
@@ -34,6 +35,13 @@ class _BrowserPageState extends State<BrowserPage> {
 
   bool _isSelectedMode = false;
   final Set<int> _selectedIndexes = {};
+
+   void _showSuccess(String message) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.green),
+      );
+   }
 
   @override
   void initState() {
@@ -179,6 +187,34 @@ class _BrowserPageState extends State<BrowserPage> {
       ),
       title: Text("${_selectedIndexes.length} selected"),
       actions: [
+        FilledButton.icon(
+            icon: const Icon(Icons.merge_type),
+            label: const Text(
+                "Merge as PDF",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 5,
+                ),
+              ),
+            onPressed: () async{
+                final selectedFiles = _selectedIndexes
+                    .map((i) => _photos[i].path)
+                    .toList();
+                final result_file=await mergeFilesToPdf(selectedFiles);
+                _showSuccess("New Merged PDF created");
+                _load();
+                setState(() {
+                  _selectedIndexes.clear();
+                  _isSelectedMode = false;
+                });
+            }
+        ),
         IconButton(
           icon: const Icon(Icons.share),
           tooltip: "Share",

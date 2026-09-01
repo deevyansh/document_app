@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' show Rect;
+import 'dart:ui' show Offset, Rect;
 
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:path/path.dart' as p;
@@ -11,11 +11,13 @@ import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 /// the flutter_quill Delta format notes are saved in) files — in the
 /// order given — into a single new PDF file.
 ///
-/// - Existing PDFs contribute all of their pages, unchanged.
-/// - Each image becomes one fitted, centered A4 page (same layout
-///   `_buildPdfFromImages` already uses for scans).
-/// - Each note is converted to plain text and auto-paginated across as
-///   many pages as it needs.
+/// Builds one destination [sf.PdfDocument] and appends to it directly:
+/// - Existing PDFs contribute all of their pages, copied via
+///   `PdfPage.createTemplate()` at their original size (this avoids
+///   relying on `PdfDocument.merge`, which isn't available in every
+///   version of syncfusion_flutter_pdf).
+/// - Each image becomes one fitted, centered A4 page.
+/// - Each note is rendered as auto-paginated plain text.
 ///
 /// Returns the merged PDF as a new [File]. Throws [ArgumentError] if
 /// [paths] is empty, [FileSystemException] if a path doesn't exist, or
@@ -23,15 +25,52 @@ import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 ///
 /// If [outputName] is omitted, the file is named `<timestamp>.pdf` — a
 /// bare number, like every other document this app writes — so it's
-/// picked up by the home/browser screens' file listing. Passing a
-/// non-numeric [outputName] still works, but the result won't show up
-/// there (it'll still be a valid file you can share directly).
+/// picked up by the home/browser screens' file listing.
+
+
+  Future<String> buildPdfFromImages(
+    List<String> imagePaths,
+    String dest,
+  ) async {
+    final doc = sf.PdfDocument();
+    doc.pageSettings.size = sf.PdfPageSize.a4; // every page identical
+    doc.pageSettings.margins.all = 0;
+
+    for (final imgPath in imagePaths) {
+      final page = doc.pages.add();
+      final image = sf.PdfBitmap(await File(imgPath).readAsBytes());
+      final pageSize = page.getClientSize();
+
+      // fit the image inside the A4 page, preserving aspect ratio
+      final scale =
+          (pageSize.width / image.width) < (pageSize.height / image.height)
+          ? pageSize.width / image.width
+          : pageSize.height / image.height;
+      final w = image.width * scale;
+      final h = image.height * scale;
+      final x = (pageSize.width - w) / 2;
+      final y = (pageSize.height - h) / 2;
+
+      page.graphics.drawImage(image, Rect.fromLTWH(x, y, w, h));
+    }
+
+    await File(dest).writeAsBytes(await doc.save());
+    doc.dispose();
+    return dest;
+  }
+
+
+
+
+
+
 Future<File> mergeFilesToPdf(List<String> paths, {String? outputName}) async {
   if (paths.isEmpty) {
     throw ArgumentError('mergeFilesToPdf: paths must not be empty');
   }
 
-  final docsToMerge = <sf.PdfDocument>[];
+  final destination = sf.PdfDocument();
+  final openSourceDocs = <sf.PdfDocument>[];
 
   try {
     for (final path in paths) {
@@ -43,38 +82,56 @@ Future<File> mergeFilesToPdf(List<String> paths, {String? outputName}) async {
       final ext = p.extension(path).toLowerCase();
 
       if (ext == '.pdf') {
-        docsToMerge.add(sf.PdfDocument(inputBytes: await file.readAsBytes()));
+        final source = sf.PdfDocument(inputBytes: await file.readAsBytes());
+        openSourceDocs.add(source);
+        _appendPdfPages(destination, source);
       } else if (ext == '.jpg' || ext == '.jpeg' || ext == '.png') {
-        docsToMerge.add(await _imageToPdfDocument(file));
+        await _appendImagePage(destination, file);
       } else if (ext == '.json') {
-        docsToMerge.add(await _noteToPdfDocument(file));
+        await _appendNotePages(destination, file);
       } else {
         throw UnsupportedError('Unsupported file type: $path');
       }
     }
 
-    final mergedBytes = sf.PdfDocument.merge(docsToMerge);
+    final bytes = await destination.save();
 
     final dir = await getApplicationDocumentsDirectory();
     final name = outputName ?? '${DateTime.now().millisecondsSinceEpoch}.pdf';
     final outFile = File(p.join(dir.path, name));
-    await outFile.writeAsBytes(mergedBytes);
+    await outFile.writeAsBytes(bytes);
     return outFile;
   } finally {
-    for (final doc in docsToMerge) {
+    destination.dispose();
+    for (final doc in openSourceDocs) {
       doc.dispose();
     }
   }
 }
 
-/// One A4 page with [imageFile] fitted and centered — same math as the
-/// existing `_buildPdfFromImages` in `main.dart`.
-Future<sf.PdfDocument> _imageToPdfDocument(File imageFile) async {
-  final doc = sf.PdfDocument();
-  doc.pageSettings.size = sf.PdfPageSize.a4;
-  doc.pageSettings.margins.all = 0;
+/// Copies every page of [source] onto the end of [destination], each at
+/// its own original size — deliberately not using `PdfDocument.merge`.
+void _appendPdfPages(sf.PdfDocument destination, sf.PdfDocument source) {
+  for (int i = 0; i < source.pages.count; i++) {
+    final sourcePage = source.pages[i];
+    final template = sourcePage.createTemplate();
 
-  final page = doc.pages.add();
+    // Size the new page to match this source page exactly, so the
+    // template is drawn 1:1 rather than being stretched to whatever
+    // page size a previous image/note page left as the default.
+    destination.pageSettings.size = sourcePage.size;
+    destination.pageSettings.margins.all = 0;
+    final newPage = destination.pages.add();
+
+    newPage.graphics.drawPdfTemplate(template, const Offset(0, 0));
+  }
+}
+
+Future<void> _appendImagePage(sf.PdfDocument destination, File imageFile) async {
+  destination.pageSettings.size = sf.PdfPageSize.a4;
+  destination.pageSettings.margins.all = 0;
+
+  final page = destination.pages.add();
   final image = sf.PdfBitmap(await imageFile.readAsBytes());
   final pageSize = page.getClientSize();
 
@@ -87,24 +144,19 @@ Future<sf.PdfDocument> _imageToPdfDocument(File imageFile) async {
   final y = (pageSize.height - h) / 2;
 
   page.graphics.drawImage(image, Rect.fromLTWH(x, y, w, h));
-  return doc;
 }
 
-/// Renders a note's plain text (extracted the same way the share flow
-/// does — `Document.fromJson(json['delta']).toPlainText()`) across as
-/// many auto-paginated pages as it needs.
-Future<sf.PdfDocument> _noteToPdfDocument(File noteFile) async {
+Future<void> _appendNotePages(sf.PdfDocument destination, File noteFile) async {
   final json = jsonDecode(await noteFile.readAsString());
   final document = Document.fromJson(
     List<Map<String, dynamic>>.from(json['delta']),
   );
   final text = document.toPlainText();
 
-  final doc = sf.PdfDocument();
-  doc.pageSettings.size = sf.PdfPageSize.a4;
-  doc.pageSettings.margins.all = 40;
+  destination.pageSettings.size = sf.PdfPageSize.a4;
+  destination.pageSettings.margins.all = 40;
 
-  final page = doc.pages.add();
+  final page = destination.pages.add();
   final pageSize = page.getClientSize();
 
   final textElement = sf.PdfTextElement(
@@ -117,6 +169,87 @@ Future<sf.PdfDocument> _noteToPdfDocument(File noteFile) async {
     bounds: Rect.fromLTWH(0, 0, pageSize.width, pageSize.height),
     format: sf.PdfLayoutFormat(layoutType: sf.PdfLayoutType.paginate),
   );
-
-  return doc;
 }
+
+Future<String> buildIdCardPdf(
+    String frontPath,
+    String? backPath,
+    String dest,
+  ) async {
+    final doc = sf.PdfDocument();
+    doc.pageSettings.size = sf.PdfPageSize.a4;
+    doc.pageSettings.margins.all = 20;
+    final page = doc.pages.add();
+    final pageSize = page.getClientSize();
+
+    final frontImage = sf.PdfBitmap(await File(frontPath).readAsBytes());
+
+    const topGap = 50.0;
+    const middleGap = 200.0;
+    const bottomGap = 50.0;
+
+    // Fixed height every ID image box will use, regardless of source resolution.
+    const fixedImageHeight = 210.0;
+
+    final maxAllowedWidth = pageSize.width * 0.75;
+
+    void drawInBox(
+      sf.PdfBitmap img,
+      double boxTop,
+      double boxWidth,
+      double boxHeight,
+    ) {
+      // Fit the image inside the box (preserving its own aspect ratio),
+      // then center it within that fixed-size box.
+      final widthScale = boxWidth / img.width;
+      final heightScale = boxHeight / img.height;
+      final scale = widthScale < heightScale ? widthScale : heightScale;
+
+      final drawW = img.width * scale;
+      final drawH = img.height * scale;
+      final x = (pageSize.width - drawW) / 2;
+      final y = boxTop + (boxHeight - drawH) / 2;
+
+      page.graphics.drawImage(img, Rect.fromLTWH(x, y, drawW, drawH));
+    }
+
+    if (backPath == null) {
+      // Single image: box width = its natural width at fixedImageHeight,
+      // capped at 75% of the page.
+      final naturalWidth =
+          (frontImage.width / frontImage.height) * fixedImageHeight;
+      final boxWidth =
+          naturalWidth < maxAllowedWidth ? naturalWidth : maxAllowedWidth;
+
+      drawInBox(frontImage, topGap, boxWidth, fixedImageHeight);
+    } else {
+      final backImage = sf.PdfBitmap(await File(backPath).readAsBytes());
+
+      // Each image's natural width at the fixed height.
+      final frontNaturalWidth =
+          (frontImage.width / frontImage.height) * fixedImageHeight;
+      final backNaturalWidth =
+          (backImage.width / backImage.height) * fixedImageHeight;
+
+      // Shared width for BOTH images: the larger of the two natural widths
+      // (so neither gets unnecessarily shrunk below its own natural size),
+      // but never exceeding 75% of the page width.
+      var commonWidth = frontNaturalWidth > backNaturalWidth
+          ? frontNaturalWidth
+          : backNaturalWidth;
+      if (commonWidth > maxAllowedWidth) {
+        commonWidth = maxAllowedWidth;
+      }
+
+      final frontTop = topGap;
+      final backTop = topGap + fixedImageHeight + middleGap;
+
+      drawInBox(frontImage, frontTop, commonWidth, fixedImageHeight);
+      drawInBox(backImage, backTop, commonWidth, fixedImageHeight);
+    }
+
+    await File(dest).writeAsBytes(await doc.save());
+    doc.dispose();
+    return dest;
+  }
+

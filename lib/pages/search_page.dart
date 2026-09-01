@@ -15,6 +15,7 @@ import 'package:flutter_quill/flutter_quill.dart';  // Document.fromJson / toPla
 import '../constants.dart';                   // baseUrl, storage, caption, DocumentTypeFilter, methodChannel — check exact source below
 import '../widgets/document_grid.dart';        // DocumentGrid
 import 'full_screen_image.dart';               // FullScreenImage (adjust relative path to your actual folder)
+import '../merge_service.dart';
 
 class SearchPage extends StatefulWidget {
   final bool autoStartListening;
@@ -358,6 +359,25 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         ),
         title: Text("${_selectedIndexes.length} selected"),
         actions: [
+            IconButton(
+                icon: const Icon(Icons.share),
+                tooltip: "Share as a PDF",
+                onPressed: () async{
+                    final selectedFiles= _selectedIndexes
+                        .map((i)=> _loadMore ? _queryphotos[i].path : _querylimitphotos[i].path)
+                        .toList();
+                    final result_file=await mergeFilesToPdf(selectedFiles);
+                    await SharePlus.instance.share(
+                    ShareParams(
+                        files: [XFile(result_file.path)],
+                        text: caption,
+                        subject: "Shared via DocEzy",
+                    ),
+                    );
+                    await result_file.delete();
+
+                }
+            ),
             IconButton(
             icon: const Icon(Icons.share),
             tooltip: "Share",
