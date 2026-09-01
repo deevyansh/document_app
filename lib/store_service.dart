@@ -29,7 +29,8 @@ Uint8List _binarizeForOcr(Uint8List bytes) {
 
 class StoreService {
     final void Function(String message) onError;
-    StoreService({required this.onError});
+    final Future<void> Function() onLoad;
+    StoreService({required this.onError, required this.onLoad});
     final TextRecognizer _latinRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
     final TextRecognizer _devanagariRecognizer = TextRecognizer(script: TextRecognitionScript.devanagiri);
 
@@ -226,4 +227,43 @@ class StoreService {
           return 'png';
         return 'unknown';
     }
+
+    Future<void> importFromPath(String filepath) async {
+      final ext = await detectExt(filepath);
+      final isPdf = (ext == 'pdf');
+      if (ext == "unknown") {
+        onError("Import is not supported for this file");
+        return;
+      }
+      final dir = await getApplicationDocumentsDirectory();
+      final dest = p.join(
+        dir.path,
+        '${DateTime.now().millisecondsSinceEpoch}.$ext',
+      );
+      await File(filepath).copy(dest);
+      if (isPdf) {
+        try {
+          await makePdfThumb(dest);
+        } catch (e) {
+          onError("PDF thumb is not generated. $e");
+        }
+      }
+      onLoad();
+
+      if (!isPdf) {
+        final text = await extractText(dest);
+        if (!await storeEmbedding(dest, text)) {
+          await File(dest).delete();
+          onLoad();
+          return;
+        }
+      } else {
+        final text = await extractPdfText(dest);
+        if (!await storeEmbedding(dest, text)) {
+          await File(dest).delete();
+          onLoad();
+          return;
+        }
+      }
+  }
 }

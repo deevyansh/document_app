@@ -130,6 +130,7 @@ class MyHomePageState extends State<MyHomePage> {
   bool _pinUnlockedThisSession = false;
   late final StoreService _storeService = StoreService(
     onError: _showError,
+    onLoad:  _load,
   );
 
   void _showError(String message) {
@@ -281,45 +282,6 @@ class MyHomePageState extends State<MyHomePage> {
     } catch (e) {
       print("Update check failed: $e");
     }
-  }
-
-  Future<void> _importFromPath(String filepath) async {
-      final ext = await _storeService.detectExt(filepath);
-      final isPdf = (ext == 'pdf');
-      if (ext == "unknown") {
-        _showError("Import is not supported for this file");
-        return;
-      }
-      final dir = await getApplicationDocumentsDirectory();
-      final dest = p.join(
-        dir.path,
-        '${DateTime.now().millisecondsSinceEpoch}.$ext',
-      );
-      await File(filepath).copy(dest);
-      if (isPdf) {
-        try {
-          await _storeService.makePdfThumb(dest);
-        } catch (e) {
-          _showError("PDF thumb is not generated. $e");
-        }
-      }
-      await _load();
-
-      if (!isPdf) {
-        final text = await _storeService.extractText(dest);
-        if (!await _storeService.storeEmbedding(dest, text)) {
-          await File(dest).delete();
-          await _load();
-          return;
-        }
-      } else {
-        final text = await _storeService.extractPdfText(dest);
-        if (!await _storeService.storeEmbedding(dest, text)) {
-          await File(dest).delete();
-          await _load();
-          return;
-        }
-      }
   }
 
   Future<void> _loadProfileImage() async {
@@ -582,7 +544,7 @@ class MyHomePageState extends State<MyHomePage> {
     });
 
     for (final f in files) {
-      await _importFromPath(f.path);
+      await _storeService.importFromPath(f.path);
       setState(() {
         _importdone++;
       });
@@ -695,7 +657,7 @@ class MyHomePageState extends State<MyHomePage> {
     );
     if (images.isEmpty) return;
     for (final image in images) {
-      await _importFromPath(image.path);
+      await _storeService.importFromPath(image.path);
     }
   }
 
@@ -712,7 +674,7 @@ class MyHomePageState extends State<MyHomePage> {
     if (result == null) return;
     for (final file in result.files) {
       if (file.path == null) continue;
-      await _importFromPath(file.path!);
+      await _storeService.importFromPath(file.path!);
     }
   }
 
@@ -877,7 +839,7 @@ class MyHomePageState extends State<MyHomePage> {
     if (images == null || images.isEmpty) return;
 
     for (final img in images) {
-      await _importFromPath(img);   // each page becomes its own document
+      await _storeService.importFromPath(img);   // each page becomes its own document
     }
   }
 
@@ -1835,7 +1797,7 @@ class MyHomePageState extends State<MyHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSearchBar(),
+            if (_photos.isNotEmpty) _buildSearchBar(),
             if (_photos.isNotEmpty) _buildRecentRow(),
             const SizedBox(height: 35),
             _buildPromoSlider(),

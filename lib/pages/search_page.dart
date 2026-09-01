@@ -16,6 +16,8 @@ import '../constants.dart';                   // baseUrl, storage, caption, Docu
 import '../widgets/document_grid.dart';        // DocumentGrid
 import 'full_screen_image.dart';               // FullScreenImage (adjust relative path to your actual folder)
 import '../merge_service.dart';
+import '../store_service.dart';
+import '../widgets/loading_dialog.dart';
 
 class SearchPage extends StatefulWidget {
   final bool autoStartListening;
@@ -38,6 +40,17 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
     int _focusAttempts = 0;
     bool _focusAchieved = false;
     String _aftersearchshowtext="No Results Found";
+    late final StoreService _storeService = StoreService(
+      onError: _showError,
+      onLoad:  _load,
+    );
+
+     void _showSuccess(String message) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), backgroundColor: Colors.green),
+          );
+     }
 
     bool _loadMore=false;
 
@@ -115,8 +128,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
             return;
         }
         if (_focusAttempts < 5) {
-            _attemptFocus();   // try again — covers cases where the window
-                                // still hadn't regained system focus yet
+            _attemptFocus();
         }
         });
     }
@@ -128,6 +140,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         _hiToEn.close();
         _queryController.dispose();
         _queryFocusNode.dispose();
+        _storeService.dispose();
         super.dispose();
     }
 
@@ -141,8 +154,8 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
             if (_selectedIndexes.isEmpty) _isSelectedMode = false;
             });
         } else {
-            if (_selectedIndexes.length >= 5) {
-            _showError("You cannot share more than 5 at once");
+            if (_selectedIndexes.length >= 10) {
+            _showError("You cannot share more than 10 at once");
             } else {
             setState(() => _selectedIndexes.add(i));
             }
@@ -345,6 +358,43 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         await _startListening();
     }
 
+    Future<void> _load() async{
+    }
+
+    Future<void> _handleMergeAsPdf() async {
+        final selectedFiles = _selectedIndexes
+            .map((i) => _loadMore ? _queryphotos[i].path : _querylimitphotos[i].path)
+            .toList();
+
+        showLoadingDialog(context, message: "Merging documents...");
+
+        try {
+            final result_file = await mergeFilesToPdf(selectedFiles);
+            await _storeService.importFromPath(result_file.path);
+
+            if (!mounted) return;
+            hideLoadingDialog(context);
+
+            setState(() {
+                _selectedIndexes.clear();
+                _isSelectedMode = false;
+            });
+
+            await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => FullScreenImage(files: [result_file], startIndex: 0),
+                ),
+            );
+            await result_file.delete();
+            _queryDocument();
+        } catch (e) {
+            if (!mounted) return;
+            hideLoadingDialog(context);
+            _showError("Couldn't merge the selected documents.");
+        }
+    }
+
     PreferredSizeWidget _selectAppBar(String window) {
         return AppBar(
         leading: IconButton(
@@ -359,24 +409,22 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         ),
         title: Text("${_selectedIndexes.length} selected"),
         actions: [
-            IconButton(
-                icon: const Icon(Icons.share),
-                tooltip: "Share as a PDF",
-                onPressed: () async{
-                    final selectedFiles= _selectedIndexes
-                        .map((i)=> _loadMore ? _queryphotos[i].path : _querylimitphotos[i].path)
-                        .toList();
-                    final result_file=await mergeFilesToPdf(selectedFiles);
-                    await SharePlus.instance.share(
-                    ShareParams(
-                        files: [XFile(result_file.path)],
-                        text: caption,
-                        subject: "Shared via DocEzy",
+             FilledButton.icon(
+                icon: const Icon(Icons.merge_type),
+                label: const Text(
+                    "Merge as PDF",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
-                    );
-                    await result_file.delete();
-
-                }
+                  ),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                  ),
+                onPressed: _handleMergeAsPdf,
             ),
             IconButton(
             icon: const Icon(Icons.share),

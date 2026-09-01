@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' show Offset, Rect;
+import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:path/path.dart' as p;
@@ -97,7 +97,7 @@ Future<File> mergeFilesToPdf(List<String> paths, {String? outputName}) async {
     final bytes = await destination.save();
 
     final dir = await getApplicationDocumentsDirectory();
-    final name = outputName ?? '${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final name = 'temp_file.pdf';
     final outFile = File(p.join(dir.path, name));
     await outFile.writeAsBytes(bytes);
     return outFile;
@@ -112,18 +112,30 @@ Future<File> mergeFilesToPdf(List<String> paths, {String? outputName}) async {
 /// Copies every page of [source] onto the end of [destination], each at
 /// its own original size — deliberately not using `PdfDocument.merge`.
 void _appendPdfPages(sf.PdfDocument destination, sf.PdfDocument source) {
+  // Fix the page size ONCE for the whole document, instead of re-sizing
+  // per source page — this is what keeps every page in the final PDF
+  // the same size, regardless of what size the source pages were.
+  destination.pageSettings.size = sf.PdfPageSize.a4;
+  destination.pageSettings.margins.all = 0;
+
   for (int i = 0; i < source.pages.count; i++) {
     final sourcePage = source.pages[i];
     final template = sourcePage.createTemplate();
+    final srcSize = sourcePage.size;
 
-    // Size the new page to match this source page exactly, so the
-    // template is drawn 1:1 rather than being stretched to whatever
-    // page size a previous image/note page left as the default.
-    destination.pageSettings.size = sourcePage.size;
-    destination.pageSettings.margins.all = 0;
     final newPage = destination.pages.add();
+    final pageSize = newPage.getClientSize();
 
-    newPage.graphics.drawPdfTemplate(template, const Offset(0, 0));
+    // Fit the source page inside the fixed page, preserving its aspect
+    // ratio and centering it — same approach already used for images.
+    final scale = (pageSize.width / srcSize.width) < (pageSize.height / srcSize.height)
+        ? pageSize.width / srcSize.width
+        : pageSize.height / srcSize.height;
+    final w = srcSize.width * scale;
+    final h = srcSize.height * scale;
+    final x = (pageSize.width - w) / 2;
+    final y = (pageSize.height - h) / 2;
+    newPage.graphics.drawPdfTemplate(template, Offset(x, y), Size(w, h));
   }
 }
 

@@ -14,6 +14,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import '../merge_service.dart';
+import '../store_service.dart';
+import '../widgets/loading_dialog.dart';
 
 class GroupedFiles {
   final String title;
@@ -35,6 +37,10 @@ class _BrowserPageState extends State<BrowserPage> {
 
   bool _isSelectedMode = false;
   final Set<int> _selectedIndexes = {};
+  late final StoreService _storeService = StoreService(
+      onError: _showError,
+      onLoad:  _load,
+    );
 
    void _showSuccess(String message) {
       if (!mounted) return;
@@ -47,6 +53,12 @@ class _BrowserPageState extends State<BrowserPage> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose(){
+    _storeService.dispose();
+    super.dispose();
   }
 
   void _showError(String message) {
@@ -124,8 +136,8 @@ class _BrowserPageState extends State<BrowserPage> {
           if (_selectedIndexes.isEmpty) _isSelectedMode = false;
         });
       } else {
-        if (_selectedIndexes.length >= 5) {
-          _showError("You cannot share more than 5 at once");
+        if (_selectedIndexes.length >= 10) {
+          _showError("You cannot share more than 10 at once");
         } else {
           setState(() => _selectedIndexes.add(i));
         }
@@ -166,6 +178,40 @@ class _BrowserPageState extends State<BrowserPage> {
     }
   }
 
+  Future<void> _handleMergeAsPdf() async {
+    final selectedFiles = _selectedIndexes
+        .map((i) => _photos[i].path)
+        .toList();
+
+    showLoadingDialog(context, message: "Merging documents...");
+
+    try {
+      final result_file = await mergeFilesToPdf(selectedFiles);
+      await _storeService.importFromPath(result_file.path);
+      await result_file.delete();
+      await _load();
+
+      if (!mounted) return;
+      hideLoadingDialog(context);
+
+      setState(() {
+        _selectedIndexes.clear();
+        _isSelectedMode = false;
+      });
+
+      await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FullScreenImage(files: _photos, startIndex: 0),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      hideLoadingDialog(context);
+      _showError("Couldn't merge the selected documents.");
+    }
+  }
+
   PreferredSizeWidget _appBar() {
     if (!_isSelectedMode) {
       return AppBar(
@@ -202,18 +248,7 @@ class _BrowserPageState extends State<BrowserPage> {
                   vertical: 5,
                 ),
               ),
-            onPressed: () async{
-                final selectedFiles = _selectedIndexes
-                    .map((i) => _photos[i].path)
-                    .toList();
-                final result_file=await mergeFilesToPdf(selectedFiles);
-                _showSuccess("New Merged PDF created");
-                _load();
-                setState(() {
-                  _selectedIndexes.clear();
-                  _isSelectedMode = false;
-                });
-            }
+            onPressed: _handleMergeAsPdf,
         ),
         IconButton(
           icon: const Icon(Icons.share),
