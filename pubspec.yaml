@@ -60,6 +60,8 @@ dependencies:
   image: ^4.5.4
   google_sign_in: ^7.1.1
   crypto: ^3.0.3
+  workmanager: ^0.10.0
+  sqflite: ^2.2.8+4
 
 dev_dependencies:
   flutter_test:

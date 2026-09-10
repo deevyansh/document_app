@@ -18,6 +18,7 @@ import 'full_screen_image.dart';               // FullScreenImage (adjust relati
 import '../merge_service.dart';
 import '../store_service.dart';
 import '../widgets/loading_dialog.dart';
+import '../backup_service.dart';
 
 class SearchPage extends StatefulWidget {
   final bool autoStartListening;
@@ -90,6 +91,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
             },
             body: jsonEncode({'doc_path': file}),
         );
+        await BackupService.markDeleted(file);
         }
     }
 

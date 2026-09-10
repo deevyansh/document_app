@@ -47,8 +47,11 @@ import 'pages/pin_lock_page.dart';
 import 'pages/pin_setup_page.dart';
 import 'store_service.dart';
 import 'merge_service.dart';
+import 'backup_service.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await BackupService.initialize();
   await GoogleSignIn.instance.initialize(
     serverClientId: '302452809509-lbkt373gqmjlvs71hb9hp4av0dtm4fn3.apps.googleusercontent.com',
   );

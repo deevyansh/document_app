@@ -16,6 +16,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import '../merge_service.dart';
 import '../store_service.dart';
 import '../widgets/loading_dialog.dart';
+import '../backup_service.dart';
 
 class GroupedFiles {
   final String title;
@@ -175,6 +176,7 @@ class _BrowserPageState extends State<BrowserPage> {
         },
         body: jsonEncode({'doc_path': file}),
       );
+      await BackupService.markDeleted(file);
     }
   }
 

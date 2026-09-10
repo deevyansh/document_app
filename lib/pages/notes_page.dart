@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import '../backup_service.dart';
 
 enum _ToolSection { text, color, formatting }
 
@@ -49,6 +50,7 @@ class _NotesPageState extends State<NotesPage> {
       },
       body: jsonEncode({"doc_path": file.path, "text": plainText}),
     );
+    await BackupService.registerPendingBackup(file.path);
   }
 
   @override

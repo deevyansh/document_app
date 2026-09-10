@@ -9,6 +9,7 @@ import '../constants.dart'; // for baseUrl, storage
 import 'pdf_page.dart';
 import 'note_read_page.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import '../backup_service.dart';
 
 class FullScreenImage extends StatefulWidget {
   final List<File> files;
@@ -249,6 +250,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
           'doc_path': widget.files[_currentindex].path,
         }),
       );
+      await BackupService.markDeleted(widget.files[_currentindex].path);
     }
     _contextcontroller.dispose();
   }
