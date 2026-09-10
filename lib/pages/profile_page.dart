@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
+import 'package:url_launcher/url_launcher.dart';
 import '../constants.dart';
 import '../pin_service.dart';
 import 'pin_setup_page.dart';
@@ -17,6 +18,10 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  static const _websiteUrl = 'https://docezy.in';
+  static const _playStoreUrl =
+      'https://play.google.com/store/apps/details?id=com.deevyansh.docezy';
+
   final _picker = ImagePicker();
   File? _profileimage;
   bool _pinEnabled = false;
@@ -31,7 +36,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (files.isNotEmpty) {
       files.sort(
-        (a, b) => b.path.compareTo(a.path),
+            (a, b) => b.path.compareTo(a.path),
       ); // newest last-modified name
       setState(() {
         _profileimage = files.first;
@@ -63,6 +68,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  @override
   void initState() {
     super.initState();
     _loadProfileImage();
@@ -91,9 +97,26 @@ class _ProfilePageState extends State<ProfilePage> {
     });
   }
 
+  /// Opens [url] in the device's browser / Play Store app. Used by the
+  /// "About DocEzy" and "Leave a Review" rows.
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        _showError("Couldn't open the link.");
+      }
+    } catch (_) {
+      _showError("Couldn't open the link.");
+    }
+  }
+
   Widget _buildWidgetPromo() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: _promoAddWidget,
@@ -143,11 +166,11 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final supported =
           await methodChannel.invokeMethod<bool>('isPinWidgetSupported') ??
-          false;
+              false;
       if (!supported) {
         _showError(
           "Your device doesn't support adding widgets this way. "
-          "Long-press your home screen to add it manually.",
+              "Long-press your home screen to add it manually.",
         );
         return;
       }
@@ -227,6 +250,81 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _confirmDeleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Account"),
+        content: const Text(
+          "This action cannot be undone.\n\nAre you sure you want to delete your account?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      Navigator.pop(context, ProfilePageAction.deleteaccount);
+    }
+  }
+
+  /// Profile picture, camera-edit badge, and the account email.
+  Widget _buildProfileHeader() {
+    return Column(
+      children: [
+        Stack(
+          children: [
+            CircleAvatar(
+              radius: 50,
+              backgroundColor: Colors.grey.shade200,
+              backgroundImage: _profileimage != null
+                  ? FileImage(_profileimage!)
+                  : null,
+              child: _profileimage == null
+                  ? const Icon(Icons.person, size: 60)
+                  : null,
+            ),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: GestureDetector(
+                onTap: _pickProfileImage,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Text(widget.userEmail, style: const TextStyle(fontSize: 18)),
+      ],
+    );
+  }
+
+  /// App-lock toggle + change-PIN row.
   Widget _buildPinSection() {
     return Column(
       children: [
@@ -252,124 +350,126 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /// About / Leave a review rows.
+  Widget _buildMoreSection() {
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.info_outline),
+          title: const Text('About DocEzy'),
+          subtitle: const Text('docezy.in'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _openUrl(_websiteUrl),
+        ),
+        ListTile(
+          leading: const Icon(Icons.star_border),
+          title: const Text('Leave a Review'),
+          subtitle: const Text('Rate DocEzy on the Play Store'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _openUrl(_playStoreUrl),
+        ),
+      ],
+    );
+  }
+
+  /// Groups App Lock / Change PIN / About / Leave a Review into one card
+  /// so the settings rows read as a single cohesive block.
+  Widget _buildSettingsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          _buildPinSection(),
+          const Divider(height: 1),
+          _buildMoreSection(),
+        ],
+      ),
+    );
+  }
+
+  /// Logout / Delete Account, pinned to the bottom of the page.
+  Widget _buildAccountActions() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              side: BorderSide(color: Colors.grey.shade400),
+              foregroundColor: Colors.grey.shade800,
+            ),
+            icon: const Icon(Icons.logout),
+            label: const Text(
+              "Log Out",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            onPressed: () {
+              Navigator.pop(context, ProfilePageAction.logout);
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              side: BorderSide(color: Colors.red.shade200),
+              foregroundColor: Colors.red.shade700,
+            ),
+            icon: const Icon(Icons.delete_outline),
+            label: const Text(
+              "Delete Account",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            onPressed: _confirmDeleteAccount,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Profile")),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-
-            // Profile Icon
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.grey.shade200,
-                  backgroundImage: _profileimage != null
-                      ? FileImage(_profileimage!)
-                      : null,
-                  child: _profileimage == null
-                      ? const Icon(Icons.person, size: 60)
-                      : null,
-                ),
-
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: GestureDetector(
-                    onTap: _pickProfileImage,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                    ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              // Scrollable content — avoids overflow on small screens while
+              // still letting the account actions sit at the very bottom.
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      _buildProfileHeader(),
+                      const SizedBox(height: 40),
+                      _buildWidgetPromo(),
+                      const SizedBox(height: 16),
+                      _buildSettingsCard(),
+                    ],
                   ),
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Email
-            Text(widget.userEmail, style: const TextStyle(fontSize: 18)),
-
-            const SizedBox(height: 40),
-
-            _buildWidgetPromo(),
-
-            const SizedBox(height: 16),
-
-            _buildPinSection(),
-
-            const SizedBox(height: 24),
-
-            // Logout Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.logout),
-                label: const Text("Log Out"),
-                onPressed: () {
-                  Navigator.pop(context, ProfilePageAction.logout);
-                },
               ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Delete Account Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
-                icon: const Icon(Icons.delete),
-                label: const Text("Delete Account"),
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text("Delete Account"),
-                      content: const Text(
-                        "This action cannot be undone.\n\nAre you sure you want to delete your account?",
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text("Cancel"),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text("Delete"),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (confirm == true) {
-                    Navigator.pop(context, ProfilePageAction.deleteaccount);
-                  }
-                },
-              ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              _buildAccountActions(),
+            ],
+          ),
         ),
       ),
     );

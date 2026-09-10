@@ -2,7 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/services.dart';
 
 const storage = FlutterSecureStorage(); // renamed from _storage (no underscore)
-const baseUrl = "https://document-backend-302452809509.asia-south1.run.app";
+const baseUrl = "https://container-service-1.tz0d7y44qkv7e.ap-south-1.cs.amazonlightsail.com";
 
 enum AppStage { enterEmail, enterOtp, document, QueryScreen}
 
