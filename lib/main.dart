@@ -106,7 +106,7 @@ class MyHomePageState extends State<MyHomePage> {
   bool _appAlreadyRunning = false;
   final List<TextEditingController> _otpControllers = List.generate(
     6,
-    (_) => TextEditingController(),
+        (_) => TextEditingController(),
   );
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
   String get _otpCode => _otpControllers.map((c) => c.text).join();
@@ -128,6 +128,15 @@ class MyHomePageState extends State<MyHomePage> {
   bool _googleLoading = false;
   late final TapGestureRecognizer _privacyPolicyRecognizer;
   bool _pinUnlockedThisSession = false;
+
+  // True from first build until we've figured out (from secure storage)
+  // whether this launch needs the PIN lock, lands on the document screen,
+  // or — for an account that has never logged in — goes straight to the
+  // email screen. While true, build() shows a brief neutral splash instead
+  // of guessing; this is what stops a brand-new user from ever seeing the
+  // PIN lock screen, even for a moment, before landing on email entry.
+  bool _bootstrapping = true;
+
   late final StoreService _storeService = StoreService(
     onError: _showError,
     onLoad:  _load,
@@ -294,7 +303,7 @@ class MyHomePageState extends State<MyHomePage> {
 
     if (files.isNotEmpty) {
       files.sort(
-        (a, b) => b.path.compareTo(a.path),
+            (a, b) => b.path.compareTo(a.path),
       ); // newest last-modified name
       setState(() {
         _profileimage = files.first;
@@ -331,35 +340,35 @@ class MyHomePageState extends State<MyHomePage> {
     setState(() => _photos = files);
   }
 
-   Future<http.Response?> _safePost(
+  Future<http.Response?> _safePost(
       String path,
       Map<String, dynamic> body, {
-      Map<String, String>? extraHeaders,
-    }) async {
-      try {
-        final res = await http
-            .post(
-              Uri.parse('$baseUrl$path'),
-              headers: {'Content-Type': 'application/json', ...?extraHeaders},
-              body: jsonEncode(body),
-            )
-            .timeout(const Duration(seconds: 30));
+        Map<String, String>? extraHeaders,
+      }) async {
+    try {
+      final res = await http
+          .post(
+        Uri.parse('$baseUrl$path'),
+        headers: {'Content-Type': 'application/json', ...?extraHeaders},
+        body: jsonEncode(body),
+      )
+          .timeout(const Duration(seconds: 30));
 
-        if (res.statusCode >= 500) {
-          _showError("Server is temporarily unavailable. Please try again.");
-          return null;
-        }
-        return res;
-      } on SocketException {
-        _showError("No internet connection.");
-        return null;
-      } on TimeoutException {
-        _showError("Request timed out. Please try again.");
-        return null;
-      } catch (e) {
-        _showError("Something went wrong.");
+      if (res.statusCode >= 500) {
+        _showError("Server is temporarily unavailable. Please try again.");
         return null;
       }
+      return res;
+    } on SocketException {
+      _showError("No internet connection.");
+      return null;
+    } on TimeoutException {
+      _showError("Request timed out. Please try again.");
+      return null;
+    } catch (e) {
+      _showError("Something went wrong.");
+      return null;
+    }
   }
 
   Future<void> _otpsubmit() async {
@@ -469,7 +478,7 @@ class MyHomePageState extends State<MyHomePage> {
     super.initState();
     _sliderTimer = Timer.periodic(
       const Duration(seconds: 10),
-      (_) {
+          (_) {
         if (!_sliderController.hasClients) return;
 
         _currentSlide =
@@ -556,6 +565,40 @@ class MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  /// Reads secure storage just once (or twice, at most) to decide where a
+  /// brand-new launch should land, then flips [_bootstrapping] off so
+  /// build() stops showing the splash and shows the *real* destination.
+  ///
+  /// Order matters here: token is checked first, and [pinService] is only
+  /// consulted if a token actually exists — a fresh install can't possibly
+  /// have a PIN set (PIN setup only happens post-login, from Profile), so
+  /// there's no reason to pay for that extra secure-storage read on the
+  /// path a brand-new user takes.
+  Future<void> _resolveStartupDestination() async {
+    final token = await storage.read(key: 'token');
+
+    if (token == null) {
+      _pinUnlockedThisSession = true;
+      if (!mounted) return;
+      setState(() {
+        appstage = AppStage.enterEmail;
+        _bootstrapping = false;
+      });
+      return;
+    }
+
+    if (!await pinService.isPinEnabled()) {
+      _pinUnlockedThisSession = true;
+    }
+
+    if (!mounted) return;
+    setState(() => _bootstrapping = false);
+
+    if (_pinUnlockedThisSession) {
+      _pinunlocked();
+    }
+  }
+
   Future<void> _initialize() async {
     _setupWidgetChannel();
     unawaited(_ensureTranslationModels());
@@ -569,29 +612,26 @@ class MyHomePageState extends State<MyHomePage> {
       }
     });
 
-    final value = await ReceiveSharingIntent.instance.getInitialMedia();
+    // Kick both off together — neither depends on the other's result, and
+    // running them one after another used to be exactly what kept a
+    // brand-new user staring at the PIN lock screen for several seconds
+    // before ever reaching the email screen.
+    final sharedMediaFuture = ReceiveSharingIntent.instance.getInitialMedia();
+    final destinationFuture = _resolveStartupDestination();
 
-    if (value.isNotEmpty) {
+    final sharedMedia = await sharedMediaFuture;
+    await destinationFuture;
+
+    if (sharedMedia.isNotEmpty) {
       if (!mounted) return;
       setState(() => _openedFromShare = true);
-      await _handleShared(value);
+      await _handleShared(sharedMedia);
       return;
     }
 
-    if(_pinUnlockedThisSession || !await pinService.isPinEnabled()){
-        _pinUnlockedThisSession = true;
-        if(await storage.read(key: 'token') == null){
-            appstage=AppStage.enterEmail;
-        }
-        else{
-            _pinunlocked();
-        }
-     }
-
     await _load();
     await _loadProfileImage();
-    await _checkForUpdate();
-
+    unawaited(_checkForUpdate());
 
     _appAlreadyRunning = true;
   }
@@ -756,13 +796,13 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _scanModeTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required ScanMode mode,
-    required Color accent,
-  }) {
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        required String subtitle,
+        required ScanMode mode,
+        required Color accent,
+      }) {
     return Material(
       color: Colors.white,
       elevation: 4,
@@ -945,34 +985,45 @@ class MyHomePageState extends State<MyHomePage> {
 
 
   void _pinunlocked() async{
-      setState((){
-         appstage=AppStage.document;
-      });
-      final String? action = await methodChannel.invokeMethod<String>(
-        "getLaunchAction",
-      );
+    setState((){
+      appstage=AppStage.document;
+    });
+    final String? action = await methodChannel.invokeMethod<String>(
+      "getLaunchAction",
+    );
 
-      if (action == "search") {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        _changeToQueryScreen();
-      } else if (action == "voice_search") {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        _changeToQueryScreen(startListening: true);
-      }
-      else if(action == "camera"){
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scanDocument();
-        });
-      }
-      else if(action == "notes"){
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _openNotes();
-        });
-      }
+    if (action == "search") {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      _changeToQueryScreen();
+    } else if (action == "voice_search") {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      _changeToQueryScreen(startListening: true);
+    }
+    else if(action == "camera"){
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scanDocument();
+      });
+    }
+    else if(action == "notes"){
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openNotes();
+      });
+    }
   }
 
+  Widget _buildSplash(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(strokeWidth: 3),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1006,14 +1057,17 @@ class MyHomePageState extends State<MyHomePage> {
         ),
       );
     }
+    if (_bootstrapping) {
+      return _buildSplash(context);
+    }
     if (!_pinUnlockedThisSession) {
-        return PinLockPage(
-          onUnlocked: () {
-            _pinUnlockedThisSession = true;
-            _pinunlocked();
-          },
-          onForgotPin: _handleForgotPin,
-        );
+      return PinLockPage(
+        onUnlocked: () {
+          _pinUnlockedThisSession = true;
+          _pinunlocked();
+        },
+        onForgotPin: _handleForgotPin,
+      );
     }
     if (appstage == AppStage.enterEmail) {
       return _buildEmailScreen(context);
@@ -1136,15 +1190,15 @@ class MyHomePageState extends State<MyHomePage> {
                                       children: [
                                         _googleLoading
                                             ? const SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child: CircularProgressIndicator(strokeWidth: 2.5),
-                                              )
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                                        )
                                             : Image.asset(
-                                                'assets/google_logo.png',
-                                                height: 20,
-                                                width: 20,
-                                              ),
+                                          'assets/google_logo.png',
+                                          height: 20,
+                                          width: 20,
+                                        ),
                                         const SizedBox(width: 12),
                                         Text(
                                           _googleLoading ? 'Signing in...' : 'Continue with Google',
@@ -1549,90 +1603,90 @@ class MyHomePageState extends State<MyHomePage> {
                     borderRadius: BorderRadius.circular(10),
                     child: isPdf
                         ? Image.file(
-                            File('${file.path}.thumb.jpg'),
-                            fit: BoxFit.cover,
-                            cacheWidth: 200,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: Colors.grey.shade200,
-                              child: const Icon(
-                                Icons.insert_drive_file,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          )
+                      File('${file.path}.thumb.jpg'),
+                      fit: BoxFit.cover,
+                      cacheWidth: 200,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Icon(
+                          Icons.insert_drive_file,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    )
                         : !isNote
                         ? Image.file(
-                            file,
-                            fit: BoxFit.cover,
-                            cacheWidth: 200,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: Colors.grey.shade200,
-                              child: const Icon(
-                                Icons.insert_drive_file,
+                      file,
+                      fit: BoxFit.cover,
+                      cacheWidth: 200,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Icon(
+                          Icons.insert_drive_file,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    )
+                        : FutureBuilder<String>(
+                      future: file.readAsString(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState !=
+                            ConnectionState.done) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          );
+                        }
+
+                        if (snapshot.hasError || !snapshot.hasData) {
+                          return Container(
+                            color: Colors.grey.shade100,
+                            child: const Center(
+                              child: Icon(
+                                Icons.notes_outlined,
+                                size: 36,
                                 color: Colors.grey,
                               ),
                             ),
-                          )
-                        : FutureBuilder<String>(
-                            future: file.readAsString(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState !=
-                                  ConnectionState.done) {
-                                return const Center(
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                );
-                              }
+                          );
+                        }
 
-                              if (snapshot.hasError || !snapshot.hasData) {
-                                return Container(
-                                  color: Colors.grey.shade100,
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.notes_outlined,
-                                      size: 36,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                );
-                              }
+                        final json = jsonDecode(snapshot.data!);
+                        final preview = json["preview"] ?? "";
 
-                              final json = jsonDecode(snapshot.data!);
-                              final preview = json["preview"] ?? "";
-
-                              return Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  border: Border.all(
-                                    color: Colors.grey.shade300,
-                                    width: 1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                padding: const EdgeInsets.all(8),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.notes_outlined,
-                                      size: 22,
-                                      color: Colors.black54,
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Expanded(
-                                      child: Text(
-                                        preview,
-                                        maxLines: 6,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(
+                              color: Colors.grey.shade300,
+                              width: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
                           ),
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.notes_outlined,
+                                size: 22,
+                                color: Colors.black54,
+                              ),
+                              const SizedBox(height: 6),
+                              Expanded(
+                                child: Text(
+                                  preview,
+                                  maxLines: 6,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 );
               }),
@@ -1713,7 +1767,7 @@ class MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(
             _sliderImages.length,
-            (index) {
+                (index) {
               final isActive = index == _currentSlide;
 
               return AnimatedContainer(
@@ -1740,58 +1794,58 @@ class MyHomePageState extends State<MyHomePage> {
   Widget _buildDocument(BuildContext context) {
     return Scaffold(
       appBar:AppBar(
-              leading: IconButton(
-                icon: _profileimage == null
-                    ? const Icon(Icons.person)
-                    : CircleAvatar(
-                        radius: 16,
-                        backgroundImage: FileImage(_profileimage!),
-                      ),
-                tooltip: 'Your Profile',
-                onPressed: () async {
-                  final email = await storage.read(key: "email") ?? "";
-                  final action = await Navigator.push<ProfilePageAction>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ProfilePage(userEmail: email),
-                    ),
-                  );
-
-                  await _loadProfileImage();
-
-                  if (action == ProfilePageAction.deleteaccount) {
-                    await _deleteaccount();
-                  } else if (action == ProfilePageAction.logout) {
-                    await _logout();
-                  }
-                },
+        leading: IconButton(
+          icon: _profileimage == null
+              ? const Icon(Icons.person)
+              : CircleAvatar(
+            radius: 16,
+            backgroundImage: FileImage(_profileimage!),
+          ),
+          tooltip: 'Your Profile',
+          onPressed: () async {
+            final email = await storage.read(key: "email") ?? "";
+            final action = await Navigator.push<ProfilePageAction>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProfilePage(userEmail: email),
               ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.favorite, size: 24, color: Colors.red),
-                  tooltip: "Open Your Favourites",
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const FavouritesPage()),
-                    );
-                    await _load();
-                  },
-                ),
+            );
 
-                IconButton(
-                  icon: const Icon(Icons.folder, size: 24, color: Colors.black),
-                  tooltip: "Browser",
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const BrowserPage()),
-                    );
-                    await _load();
-                  },
-                ),
-              ],
-            ),
+            await _loadProfileImage();
+
+            if (action == ProfilePageAction.deleteaccount) {
+              await _deleteaccount();
+            } else if (action == ProfilePageAction.logout) {
+              await _logout();
+            }
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.favorite, size: 24, color: Colors.red),
+            tooltip: "Open Your Favourites",
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FavouritesPage()),
+              );
+              await _load();
+            },
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.folder, size: 24, color: Colors.black),
+            tooltip: "Browser",
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BrowserPage()),
+              );
+              await _load();
+            },
+          ),
+        ],
+      ),
 
       body: SafeArea(
         child: Column(
@@ -1809,55 +1863,55 @@ class MyHomePageState extends State<MyHomePage> {
       ),
 
       bottomNavigationBar: SafeArea(
-              top: false,
-              child: Container(
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 1,
-                      offset: const Offset(0, -1),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _bottomButton(
-                      icon: Icons.notes,
-                      label: "Notes",
-                      onTap: () async {
-                        await Navigator.push<void>(
-                          context,
-                          MaterialPageRoute(builder: (_) => const NotesPage()),
-                        );
-                        await _load();
-                      },
-                    ),
-
-                    _bottomButton(
-                      icon: Icons.camera_alt,
-                      label: "Scan",
-                      onTap: _scanDocument,
-                    ),
-
-                    _bottomButton(
-                      icon: Icons.photo_library,
-                      label: "Gallery",
-                      onTap: _pickFromGallery,
-                    ),
-
-                    _bottomButton(
-                      icon: Icons.upload_file,
-                      label: "Upload",
-                      onTap: _pickFromFile,
-                    ),
-                  ],
-                ),
+        top: false,
+        child: Container(
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 1,
+                offset: const Offset(0, -1),
               ),
-            ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _bottomButton(
+                icon: Icons.notes,
+                label: "Notes",
+                onTap: () async {
+                  await Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotesPage()),
+                  );
+                  await _load();
+                },
+              ),
+
+              _bottomButton(
+                icon: Icons.camera_alt,
+                label: "Scan",
+                onTap: _scanDocument,
+              ),
+
+              _bottomButton(
+                icon: Icons.photo_library,
+                label: "Gallery",
+                onTap: _pickFromGallery,
+              ),
+
+              _bottomButton(
+                icon: Icons.upload_file,
+                label: "Upload",
+                onTap: _pickFromFile,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1872,10 +1926,10 @@ class MyHomePageState extends State<MyHomePage> {
 class _ForgotPinOtpDialog extends StatefulWidget {
   final String email;
   final Future<http.Response?> Function(
-    String path,
-    Map<String, dynamic> body, {
-    Map<String, String>? extraHeaders,
-  })
+      String path,
+      Map<String, dynamic> body, {
+      Map<String, String>? extraHeaders,
+      })
   safePost;
 
   const _ForgotPinOtpDialog({required this.email, required this.safePost});
@@ -1956,10 +2010,10 @@ class _ForgotPinOtpDialogState extends State<_ForgotPinOtpDialog> {
           onPressed: _verifying ? null : _verify,
           child: _verifying
               ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
               : const Text('Verify'),
         ),
       ],
