@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -6,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 import '../constants.dart';
 import '../pin_service.dart';
+import 'admin_stats_page.dart';
 import 'pin_setup_page.dart';
 import 'pin_change_page.dart';
 
@@ -25,6 +27,14 @@ class _ProfilePageState extends State<ProfilePage> {
   final _picker = ImagePicker();
   File? _profileimage;
   bool _pinEnabled = false;
+
+  // Hidden admin entry point: tapping the "Profile" app bar title 3 times
+  // within [_adminTapWindow] opens AdminStatsPage — but only for
+  // [adminEmail]. Anyone else tapping it 3 times sees nothing happen, so
+  // the existence of the admin screen stays invisible to regular users.
+  static const _adminTapWindow = Duration(seconds: 2);
+  int _adminTapCount = 0;
+  Timer? _adminTapResetTimer;
 
   Future<void> _loadProfileImage() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -73,6 +83,34 @@ class _ProfilePageState extends State<ProfilePage> {
     super.initState();
     _loadProfileImage();
     _loadPinStatus();
+  }
+
+  @override
+  void dispose() {
+    _adminTapResetTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Counts taps on the "Profile" title. On the 3rd tap inside the window,
+  /// resets the counter and — only for [adminEmail] — opens AdminStatsPage.
+  void _handleTitleTap() {
+    _adminTapResetTimer?.cancel();
+    _adminTapCount++;
+
+    if (_adminTapCount >= 3) {
+      _adminTapCount = 0;
+      if (widget.userEmail.toLowerCase() == adminEmail.toLowerCase()) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminStatsPage()),
+        );
+      }
+      return;
+    }
+
+    _adminTapResetTimer = Timer(_adminTapWindow, () {
+      _adminTapCount = 0;
+    });
   }
 
   Future<void> _pickProfileImage() async {
@@ -444,7 +482,13 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Profile")),
+      appBar: AppBar(
+        title: GestureDetector(
+          onTap: _handleTitleTap,
+          behavior: HitTestBehavior.opaque,
+          child: const Text("Profile"),
+        ),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),

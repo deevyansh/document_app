@@ -8,6 +8,8 @@ enum AppStage { enterEmail, enterOtp, document, QueryScreen}
 
 enum ProfilePageAction { deleteaccount, logout }
 
+const adminEmail = "devkhadria@gmail.com";
+
 enum DocumentTypeFilter { all, image, pdf }
 enum ScanMode { images, pdf, idCard }
 
