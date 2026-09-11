@@ -193,8 +193,8 @@ class BackupService {
     if (!_initialized) {
       debugPrint(
         'BackupService: WorkManager not initialized yet in this process — '
-            '$docPath stays queued and will be picked up by the next periodic '
-            'sync after a full app restart.',
+        '$docPath stays queued and will be picked up by the next periodic '
+        'sync after a full app restart.',
       );
       return;
     }
@@ -233,21 +233,21 @@ class BackupService {
     // so failures are visible without slowing down the delete flow.
     http
         .post(
-      Uri.parse('$baseUrl/backup/delete'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({'doc_path': docPath}),
-    )
+          Uri.parse('$baseUrl/backup/delete'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({'doc_path': docPath}),
+        )
         .then((res) {
-      debugPrint(
-        'BackupService: backup/delete for $docPath -> ${res.statusCode}',
-      );
-    })
+          debugPrint(
+            'BackupService: backup/delete for $docPath -> ${res.statusCode}',
+          );
+        })
         .catchError((e) {
-      debugPrint('BackupService: backup/delete for $docPath failed: $e');
-    });
+          debugPrint('BackupService: backup/delete for $docPath failed: $e');
+        });
   }
 
   static String _contentTypeFor(String docPath) {
@@ -318,32 +318,38 @@ class BackupService {
 
         final initRes = await http
             .post(
-          Uri.parse('$baseUrl/backup/init'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({
-            'doc_path': docPath,
-            'content_type': contentType,
-            'size': bytes.length,
-          }),
-        )
+              Uri.parse('$baseUrl/backup/init'),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode({
+                'doc_path': docPath,
+                'content_type': contentType,
+                'size': bytes.length,
+              }),
+            )
             .timeout(const Duration(seconds: 30));
 
         if (initRes.statusCode != 200) {
           throw Exception('backup/init failed (${initRes.statusCode})');
         }
         final initData = jsonDecode(initRes.body) as Map<String, dynamic>;
+        if(initData["success"] == false) {
+          await db.delete('backup_queue', where: 'doc_path = ?', whereArgs: [docPath]);
+          if(await File(docPath).exists()) {
+            await File(docPath).delete();
+          }
+          continue;
+        }
         final backupId = initData['backup_id'] as String;
         final uploadUrl = initData['upload_url'] as String;
-
         final putRes = await http
             .put(
-          Uri.parse(uploadUrl),
-          headers: {'Content-Type': contentType},
-          body: bytes,
-        )
+              Uri.parse(uploadUrl),
+              headers: {'Content-Type': contentType},
+              body: bytes,
+            )
             .timeout(const Duration(minutes: 5));
 
         if (putRes.statusCode < 200 || putRes.statusCode >= 300) {
@@ -352,13 +358,13 @@ class BackupService {
 
         final completeRes = await http
             .post(
-          Uri.parse('$baseUrl/backup/complete'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({'backup_id': backupId}),
-        )
+              Uri.parse('$baseUrl/backup/complete'),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode({'backup_id': backupId}),
+            )
             .timeout(const Duration(seconds: 30));
 
         if (completeRes.statusCode != 200) {
@@ -395,6 +401,157 @@ class BackupService {
     }
   }
 
+  // ── Backup status (Profile → Backup Status) ─────────────────────────────
+  //
+  // Lists every document file currently on this device (mirrors the same
+  // file-listing filter BrowserPage/_load() uses to decide what counts as
+  // a "document") and cross-checks each against the BACKEND's `backups`
+  // table — not the local backup_queue — to report how many are backed
+  // up.
+  //
+  // Deliberately not using backup_queue for this: it's a local sqflite
+  // table with no server counterpart, so it's wiped by an uninstall, a
+  // "clear app data", or clearLocalAccountData() on logout. A device that
+  // just reinstalled the app would show 0 backed up for every file even
+  // though the backend still has them all — which is exactly backwards
+  // for a screen whose entire point is "can I safely lose this device".
+  // The `backups` table in Postgres is the only durable record of what's
+  // actually been uploaded, so that's what this queries, over the
+  // network, every time. Slower than a local read, but correctness here
+  // matters more than speed — a network round trip is an acceptable cost
+  // for a screen the user opens deliberately, not one on a hot path.
+
+  /// Same filter as BrowserPage._load(): every real document/note file in
+  /// the documents directory, excluding profile pictures and PDF
+  /// thumbnails, and requiring the numeric (millis-since-epoch) filename
+  /// stem every real document/note is saved under.
+  static Future<List<File>> _listDocumentFiles() async {
+    final dir = await getApplicationDocumentsDirectory();
+    if (!await dir.exists()) return [];
+    final numericName = RegExp(r'^\d+$');
+    return dir.listSync().whereType<File>().where((f) {
+      final name = p.basename(f.path);
+      if (name.startsWith('profile_')) return false;
+      if (name.endsWith('.thumb.jpg')) return false;
+      final stem = p.basenameWithoutExtension(name);
+      if (!numericName.hasMatch(stem)) return false;
+      if (name.endsWith('.pdf')) return true;
+      if (name.endsWith('.json')) return true;
+      return name.endsWith('.jpg') || name.endsWith('.png');
+    }).toList();
+  }
+
+  /// Every filename (basename, not full doc_path — see _localRestorePath's
+  /// comment on why the two can differ across devices/reinstalls even for
+  /// the "same" file) this account has a status='uploaded', non-deleted
+  /// row for in the backend's `backups` table right now. This is the
+  /// single source of truth for "is this file backed up" — nothing local
+  /// is consulted.
+  static Future<Set<String>> _fetchBackedUpFilenames() async {
+    final token = await storage.read(key: 'token');
+    if (token == null) {
+      throw Exception('Not logged in');
+    }
+
+    final res = await http
+        .post(
+          Uri.parse('$baseUrl/backup/list'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 30));
+
+    if (res.statusCode != 200) {
+      throw Exception('backup/list failed (${res.statusCode})');
+    }
+
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final rows = (data['results'] as List).cast<Map<String, dynamic>>();
+    return {for (final row in rows) p.basename(row['doc_path'] as String)};
+  }
+
+  /// Scans this device's documents directory and asks the backend which
+  /// of those files it already has an uploaded backup for. Read-only —
+  /// doesn't touch the local queue or write anything — but it does hit
+  /// the network, so it can throw (no connection, not logged in, server
+  /// error); callers should show a retry state on failure rather than a
+  /// stale/misleading count.
+  static Future<BackupStatusSummary> getStatus() async {
+    final files = await _listDocumentFiles();
+    final backedUpNames = await _fetchBackedUpFilenames();
+    final total = files.length;
+    final backedUp = files
+        .where((f) => backedUpNames.contains(p.basename(f.path)))
+        .length;
+    return BackupStatusSummary(
+      total: total,
+      backedUp: backedUp,
+      notBackedUp: total - backedUp,
+    );
+  }
+
+  /// "Backup All Files Now" on the Backup Status screen. Three steps:
+  ///
+  /// 1. Ask the backend which files are already backed up (same call as
+  ///    getStatus()) — this is what makes the next step correct even
+  ///    right after a reinstall, when the local backup_queue is empty for
+  ///    every file, backed up or not.
+  /// 2. Reconciliation: any local document file that (a) isn't backed up
+  ///    per the backend AND (b) has no row at all in backup_queue yet
+  ///    gets backfilled as a fresh 'pending' row — exactly like a
+  ///    brand-new document would be. This is the "previous version user"
+  ///    case: a file imported before registerPendingBackup() existed
+  ///    (its docs-table row already exists server-side, since import has
+  ///    always called /send-document synchronously, but its *file* was
+  ///    never queued for backup) as well as the "reinstalled the app"
+  ///    case for anything that genuinely was never uploaded.
+  /// 3. Runs the upload pass synchronously (awaited in the foreground,
+  ///    not scheduled as a background WorkManager task) so the caller can
+  ///    show a blocking loading dialog for the duration, then re-queries
+  ///    the backend once more via getStatus() so the returned summary
+  ///    reflects what actually landed.
+  static Future<BackupStatusSummary> backupAllNow() async {
+    final files = await _listDocumentFiles();
+    final backedUpNames = await _fetchBackedUpFilenames();
+
+    final db = await _db();
+    final existingRows = await db.query('backup_queue', columns: ['doc_path']);
+    final knownLocally = existingRows.map((r) => r['doc_path'] as String).toSet();
+
+    for (final file in files) {
+      if (backedUpNames.contains(p.basename(file.path))) {
+        // Backend already has this one — never mind what the local queue
+        // says (or doesn't say); nothing to do.
+        continue;
+      }
+      if (knownLocally.contains(file.path)) {
+        // Already tracked locally (pending/failed/uploading) —
+        // runPendingBackups() below will pick it up on its own.
+        continue;
+      }
+      await db.insert(
+        'backup_queue',
+        {
+          'doc_path': file.path,
+          'backup_id': null,
+          'status': 'pending',
+          'attempts': 0,
+          'last_error': null,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      debugPrint(
+        'BackupService: backfilled legacy document ${file.path} into backup_queue',
+      );
+    }
+
+    await runPendingBackups();
+    return getStatus();
+  }
+
   // ── Retrieval (restore) ──────────────────────────────────────────────
   //
   // The "Retrieve Backup" row on Profile: check what's in the backend's
@@ -429,12 +586,12 @@ class BackupService {
 
     final res = await http
         .post(
-      Uri.parse('$baseUrl/backup/list'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    )
+          Uri.parse('$baseUrl/backup/list'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
         .timeout(const Duration(seconds: 30));
 
     if (res.statusCode != 200) {
@@ -458,9 +615,9 @@ class BackupService {
   /// back onto this device. Best-effort per row — one failure doesn't stop
   /// the rest — with the tally returned so the caller can report it.
   static Future<BackupRetrieveResult> retrieveBackups(
-      List<Map<String, dynamic>> rows, {
-        void Function(int done, int total, String name)? onProgress,
-      }) async {
+    List<Map<String, dynamic>> rows, {
+    void Function(int done, int total, String name)? onProgress,
+  }) async {
     final token = await storage.read(key: 'token');
     if (token == null) {
       return BackupRetrieveResult(succeeded: 0, failed: rows.length);
@@ -479,21 +636,21 @@ class BackupService {
       try {
         final downloadRes = await http
             .post(
-          Uri.parse('$baseUrl/backup/download'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({'backup_id': backupId}),
-        )
+              Uri.parse('$baseUrl/backup/download'),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+              body: jsonEncode({'backup_id': backupId}),
+            )
             .timeout(const Duration(seconds: 30));
 
         if (downloadRes.statusCode != 200) {
           throw Exception('backup/download failed (${downloadRes.statusCode})');
         }
         final downloadUrl =
-        (jsonDecode(downloadRes.body) as Map<String, dynamic>)['download_url']
-        as String;
+            (jsonDecode(downloadRes.body) as Map<String, dynamic>)['download_url']
+                as String;
 
         final fileRes = await http
             .get(Uri.parse(downloadUrl))
@@ -542,6 +699,78 @@ class BackupService {
       await doc?.close();
     }
   }
+
+  // ── Account lifecycle: logout wipe + login auto-restore ────────────────
+  //
+  // Neither of these is gated on the "one account per phone" invariant
+  // being fully built out (see backup-system-plan.md §11) — they're the
+  // two concrete pieces of it that make it safe *today*: logging out
+  // clears this device's copy of the account's files (so a different
+  // account signing in next can never see them), and logging in quietly
+  // pulls the signed-in account's files back down in the background.
+
+  /// Called right after login succeeds (OTP or Google) — deliberately
+  /// NOT awaited by the caller, so app startup/navigation never waits on
+  /// this. Runs the same check-then-download logic as "Retrieve Backup"
+  /// on Profile, just automatically and silently: no confirmation dialog,
+  /// no progress UI, only debugPrint logging. If it fails or misses
+  /// something, Retrieve Backup remains the user-visible fallback to
+  /// check and retry — this is a convenience, not the only path to a
+  /// restored account.
+  static Future<void> autoRestoreAfterLogin() async {
+    try {
+      final missing = await checkForRestorableBackups();
+      if (missing.isEmpty) {
+        debugPrint('BackupService: autoRestoreAfterLogin — nothing to restore');
+        return;
+      }
+      debugPrint(
+        'BackupService: autoRestoreAfterLogin — restoring ${missing.length} '
+        'file(s) in the background',
+      );
+      final result = await retrieveBackups(missing);
+      debugPrint(
+        'BackupService: autoRestoreAfterLogin done — '
+        '${result.succeeded} restored, ${result.failed} failed',
+      );
+    } catch (e) {
+      debugPrint('BackupService: autoRestoreAfterLogin failed: $e');
+    }
+  }
+
+  /// Called on logout. Deletes every file in this device's permanent
+  /// documents directory (imported documents/notes, thumbnails, the
+  /// profile picture, any leftover temp files) and clears the local
+  /// upload queue — none of that is destructive server-side, since
+  /// everything here was already backed up or still queued to be, and
+  /// signing back into this same account (here or on another device)
+  /// brings it all back via autoRestoreAfterLogin()/Retrieve Backup.
+  ///
+  /// This exists because the documents directory isn't namespaced per
+  /// account (see backup-system-plan.md §11): at most one account's
+  /// files can safely sit there at a time, and logout is the point where
+  /// this device stops being "owned" by this account.
+  static Future<void> clearLocalAccountData() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      for (final entry in dir.listSync().whereType<File>()) {
+        try {
+          await entry.delete();
+        } catch (e) {
+          debugPrint(
+            'BackupService: failed to delete ${entry.path} on logout: $e',
+          );
+        }
+      }
+      final db = await _db();
+      await db.delete('backup_queue');
+      debugPrint(
+        'BackupService: cleared local documents + backup queue on logout',
+      );
+    } catch (e) {
+      debugPrint('BackupService: clearLocalAccountData failed: $e');
+    }
+  }
 }
 
 /// Outcome of a retrieveBackups() call — how many of the requested files
@@ -550,4 +779,18 @@ class BackupRetrieveResult {
   final int succeeded;
   final int failed;
   const BackupRetrieveResult({required this.succeeded, required this.failed});
+}
+
+/// Snapshot for the Backup Status screen: how many document files exist on
+/// this device right now, and how many of those currently have a
+/// status='uploaded' row in the local backup_queue.
+class BackupStatusSummary {
+  final int total;
+  final int backedUp;
+  final int notBackedUp;
+  const BackupStatusSummary({
+    required this.total,
+    required this.backedUp,
+    required this.notBackedUp,
+  });
 }

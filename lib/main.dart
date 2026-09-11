@@ -254,6 +254,8 @@ class MyHomePageState extends State<MyHomePage> {
       await storage.write(key: "token", value: data["access_token"]);
       await storage.write(key: "email", value: data["email"]);
 
+      unawaited(BackupService.autoRestoreAfterLogin());
+
       final dir = await getApplicationDocumentsDirectory();
       final files = dir
           .listSync()
@@ -395,6 +397,7 @@ class MyHomePageState extends State<MyHomePage> {
     if (data["success"] == true) {
       await storage.write(key: "token", value: data["token"]);
       await storage.write(key: "email", value: _emailController.text);
+      unawaited(BackupService.autoRestoreAfterLogin());
       setState(() {
         appstage = AppStage.document;
       });
@@ -1415,6 +1418,7 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _logout() async {
+    await BackupService.clearLocalAccountData();
     await storage.delete(key: 'token');
     await storage.delete(key: 'email');
     setState(() {
@@ -1495,6 +1499,7 @@ class MyHomePageState extends State<MyHomePage> {
         },
         body: jsonEncode({'doc_path': file}),
       );
+      await BackupService.markDeleted(file);
     }
   }
 
