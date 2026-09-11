@@ -7,6 +7,8 @@ import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 import '../constants.dart';
 import '../pin_service.dart';
+import '../backup_service.dart';
+import '../widgets/loading_dialog.dart';
 import 'admin_stats_page.dart';
 import 'pin_setup_page.dart';
 import 'pin_change_page.dart';
@@ -27,6 +29,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final _picker = ImagePicker();
   File? _profileimage;
   bool _pinEnabled = false;
+  bool _checkingBackup = false;
 
   // Hidden admin entry point: tapping the "Profile" app bar title 3 times
   // within [_adminTapWindow] opens AdminStatsPage — but only for
@@ -76,6 +79,13 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     );
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -152,70 +162,165 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Widget _buildWidgetPromo() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _promoAddWidget,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
+  String _formatSize(int? bytes) {
+    if (bytes == null) return '';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  IconData _iconFor(String name) {
+    final lower = name.toLowerCase();
+    if (lower.endsWith('.pdf')) return Icons.picture_as_pdf_outlined;
+    if (lower.endsWith('.json')) return Icons.notes_outlined;
+    return Icons.image_outlined;
+  }
+
+  /// "N file(s) in your backup aren't on this device" confirmation, with
+  /// a scrollable preview of what's about to be retrieved.
+  Future<bool?> _confirmRetrieve(List<Map<String, dynamic>> missing) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Retrieve from backup?'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.search, color: Colors.white, size: 28),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Search from your home screen',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+              Text(
+                '${missing.length} file(s) in your backup ${missing.length == 1 ? "isn't" : "aren't"} on this device yet.',
+              ),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 240),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: missing.length,
+                  itemBuilder: (context, i) {
+                    final row = missing[i];
+                    final name = p.basename(row['doc_path'] as String);
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _iconFor(name),
+                            size: 18,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              name,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                          Text(
+                            _formatSize(row['size_bytes'] as int?),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Add the DocEzy search widget',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
-              const Icon(Icons.add_circle, color: Colors.white, size: 26),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Retrieve'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "Retrieve Backup" row's whole flow: check what's missing → confirm
+  /// with the user → download + write each one back, with progress.
+  Future<void> _retrieveBackup() async {
+    if (_checkingBackup) return;
+    setState(() => _checkingBackup = true);
+
+    List<Map<String, dynamic>> missing;
+    try {
+      missing = await BackupService.checkForRestorableBackups();
+    } catch (e) {
+      if (mounted) setState(() => _checkingBackup = false);
+      _showError("Couldn't check your backup right now.");
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _checkingBackup = false);
+
+    if (missing.isEmpty) {
+      _showMessage("You're all caught up — nothing new to retrieve.");
+      return;
+    }
+
+    final confirmed = await _confirmRetrieve(missing);
+    if (confirmed != true || !mounted) return;
+
+    final progress = ValueNotifier<String>(
+      'Retrieving 1 of ${missing.length}…',
+    );
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: ValueListenableBuilder<String>(
+                  valueListenable: progress,
+                  builder: (_, value, __) => Text(value),
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
-  }
 
-  Future<void> _promoAddWidget() async {
-    try {
-      final supported =
-          await methodChannel.invokeMethod<bool>('isPinWidgetSupported') ??
-              false;
-      if (!supported) {
-        _showError(
-          "Your device doesn't support adding widgets this way. "
-              "Long-press your home screen to add it manually.",
-        );
-        return;
-      }
-      await methodChannel.invokeMethod('requestPinWidget');
-    } catch (e) {
-      _showError("Couldn't add the widget.");
-    }
+    final result = await BackupService.retrieveBackups(
+      missing,
+      onProgress: (done, total, name) {
+        progress.value = done >= total
+            ? 'Finishing up…'
+            : 'Retrieving ${done + 1} of $total\n$name';
+      },
+    );
+
+    if (!mounted) return;
+    hideLoadingDialog(context);
+
+    _showMessage(
+      result.failed == 0
+          ? 'Retrieved ${result.succeeded} file(s).'
+          : 'Retrieved ${result.succeeded} file(s) — ${result.failed} couldn\'t be downloaded. Try again later.',
+    );
   }
 
   Future<bool> _confirmCurrentPin() async {
@@ -388,10 +493,23 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  /// About / Leave a review rows.
+  /// Retrieve Backup / About / Leave a review rows.
   Widget _buildMoreSection() {
     return Column(
       children: [
+        ListTile(
+          leading: _checkingBackup
+              ? const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+              : const Icon(Icons.cloud_download_outlined),
+          title: const Text('Retrieve Backup'),
+          subtitle: const Text('Restore files backed up from another device'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: _checkingBackup ? null : _retrieveBackup,
+        ),
         ListTile(
           leading: const Icon(Icons.info_outline),
           title: const Text('About DocEzy'),
@@ -410,8 +528,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  /// Groups App Lock / Change PIN / About / Leave a Review into one card
-  /// so the settings rows read as a single cohesive block.
+  /// Groups App Lock / Change PIN / Retrieve Backup / About / Leave a
+  /// Review into one card so the settings rows read as a single cohesive
+  /// block.
   Widget _buildSettingsCard() {
     return Container(
       decoration: BoxDecoration(
@@ -517,5 +636,71 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     );
+  }
+
+  Widget _buildWidgetPromo() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _promoAddWidget,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1565C0), Color(0xFF42A5F5)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.search, color: Colors.white, size: 28),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Search from your home screen',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Add the DocEzy search widget',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.add_circle, color: Colors.white, size: 26),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _promoAddWidget() async {
+    try {
+      final supported =
+          await methodChannel.invokeMethod<bool>('isPinWidgetSupported') ??
+              false;
+      if (!supported) {
+        _showError(
+          "Your device doesn't support adding widgets this way. "
+              "Long-press your home screen to add it manually.",
+        );
+        return;
+      }
+      await methodChannel.invokeMethod('requestPinWidget');
+    } catch (e) {
+      _showError("Couldn't add the widget.");
+    }
   }
 }

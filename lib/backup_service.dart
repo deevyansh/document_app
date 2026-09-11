@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:pdfx/pdfx.dart' as pdfx;
 import 'package:sqflite/sqflite.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -34,10 +36,22 @@ const String backupSyncTaskName = 'docezy-backup-sync';
 const String _backupPeriodicUniqueName = 'docezy-backup-periodic';
 
 /// Unique name for the "run right now" one-off task. Kept as a single
-/// constant (instead of one per doc_path) with ExistingWorkPolicy.replace,
-/// so if several documents are queued in quick succession they coalesce
-/// into one background run instead of piling up separate jobs — the run
-/// drains the *whole* local queue anyway, not just the doc that triggered it.
+/// constant (instead of one per doc_path), paired with
+/// ExistingWorkPolicy.keep (see registerPendingBackup below) — NOT
+/// .replace. .replace cancels/kills an already-*running* task with this
+/// name, which was cutting a batch upload off mid-file when two imports
+/// happened in quick succession (e.g. picking 2 images at once): the
+/// first task would be midway through uploading the second document in
+/// its queue when the second import's registerOneOffTask call replaced
+/// it, truncating that upload — sometimes before the PUT to the bucket
+/// finished (object never lands, row stuck 'pending'), sometimes right
+/// after it finished but before /backup/complete could run (object *is*
+/// in the bucket, but the row still shows 'pending' forever). With
+/// .keep, a request that arrives while a sync is already
+/// enqueued/running just doesn't schedule a second one — the one already
+/// running (or about to) queries the local queue at execution time, not
+/// at scheduling time, so it still picks up every doc queued before it
+/// actually starts.
 const String _backupImmediateUniqueName = 'docezy-backup-immediate';
 
 /// How often the OS runs the periodic sync.
@@ -188,7 +202,8 @@ class BackupService {
       await Workmanager().registerOneOffTask(
         _backupImmediateUniqueName,
         backupSyncTaskName,
-        existingWorkPolicy: ExistingWorkPolicy.replace,
+        // keep, not replace — see the comment on _backupImmediateUniqueName.
+        existingWorkPolicy: ExistingWorkPolicy.keep,
         constraints: Constraints(networkType: NetworkType.connected),
       );
       debugPrint('BackupService: immediate sync task scheduled with the OS');
@@ -264,9 +279,17 @@ class BackupService {
     }
 
     final db = await _db();
+    // 'uploading' is included here too: a row only ever sits at
+    // 'uploading' locally while a run is actively working on it (see the
+    // db.update right below), so if we find one *at the start* of a run,
+    // it can only mean a previous run got killed mid-upload — the OS
+    // stopping the background task early (Doze, memory pressure,
+    // force-stop) rather than letting it reach the try/catch's success
+    // or failure branch. Without retrying those too, such a row would be
+    // silently stuck forever, retried by neither 'pending' nor 'failed'.
     final rows = await db.query(
       'backup_queue',
-      where: "status = 'pending' OR status = 'failed'",
+      where: "status = 'pending' OR status = 'failed' OR status = 'uploading'",
     );
     debugPrint('BackupService: runPendingBackups — ${rows.length} row(s) to sync');
 
@@ -371,4 +394,160 @@ class BackupService {
       }
     }
   }
+
+  // ── Retrieval (restore) ──────────────────────────────────────────────
+  //
+  // The "Retrieve Backup" row on Profile: check what's in the backend's
+  // backups but missing from this device, show the user that count, and
+  // — once they confirm — download and write each one back. Per
+  // backup-system-plan.md §1/§4, this never has to touch the search
+  // index (docs/doc_words rows were never lost — they live in Postgres,
+  // independent of any device), so restoring is just "put the bytes
+  // back at the right local path" plus a PDF thumbnail regen.
+  //
+  // This runs in the foreground, driven by an explicit user tap — unlike
+  // upload, it's not a WorkManager background job.
+
+  /// Where a restored file for [docPath] belongs *on this device*: not
+  /// necessarily the literal string stored server-side (which could be a
+  /// different device's absolute path, e.g. a secondary Android user
+  /// profile with a different sandbox index), but that same filename
+  /// rebuilt against this device's current documents directory.
+  static Future<String> _localRestorePath(String docPath) async {
+    final documentsDir = await getApplicationDocumentsDirectory();
+    return p.join(documentsDir.path, p.basename(docPath));
+  }
+
+  /// Returns every backup row (as POST /backup/list returns them —
+  /// backup_id, doc_path, content_type, size_bytes, uploaded_at, ...)
+  /// whose file isn't present on this device right now. Read-only: this
+  /// doesn't download anything or touch the local upload queue, just
+  /// answers "what's new".
+  static Future<List<Map<String, dynamic>>> checkForRestorableBackups() async {
+    final token = await storage.read(key: 'token');
+    if (token == null) return [];
+
+    final res = await http
+        .post(
+      Uri.parse('$baseUrl/backup/list'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    )
+        .timeout(const Duration(seconds: 30));
+
+    if (res.statusCode != 200) {
+      throw Exception('backup/list failed (${res.statusCode})');
+    }
+
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final rows = (data['results'] as List).cast<Map<String, dynamic>>();
+
+    final missing = <Map<String, dynamic>>[];
+    for (final row in rows) {
+      final localPath = await _localRestorePath(row['doc_path'] as String);
+      if (!await File(localPath).exists()) {
+        missing.add(row);
+      }
+    }
+    return missing;
+  }
+
+  /// Downloads and writes each of [rows] (from checkForRestorableBackups())
+  /// back onto this device. Best-effort per row — one failure doesn't stop
+  /// the rest — with the tally returned so the caller can report it.
+  static Future<BackupRetrieveResult> retrieveBackups(
+      List<Map<String, dynamic>> rows, {
+        void Function(int done, int total, String name)? onProgress,
+      }) async {
+    final token = await storage.read(key: 'token');
+    if (token == null) {
+      return BackupRetrieveResult(succeeded: 0, failed: rows.length);
+    }
+
+    int succeeded = 0;
+    int failed = 0;
+
+    for (var i = 0; i < rows.length; i++) {
+      final row = rows[i];
+      final docPath = row['doc_path'] as String;
+      final backupId = row['backup_id'] as String;
+      final name = p.basename(docPath);
+      onProgress?.call(i, rows.length, name);
+
+      try {
+        final downloadRes = await http
+            .post(
+          Uri.parse('$baseUrl/backup/download'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({'backup_id': backupId}),
+        )
+            .timeout(const Duration(seconds: 30));
+
+        if (downloadRes.statusCode != 200) {
+          throw Exception('backup/download failed (${downloadRes.statusCode})');
+        }
+        final downloadUrl =
+        (jsonDecode(downloadRes.body) as Map<String, dynamic>)['download_url']
+        as String;
+
+        final fileRes = await http
+            .get(Uri.parse(downloadUrl))
+            .timeout(const Duration(minutes: 5));
+        if (fileRes.statusCode < 200 || fileRes.statusCode >= 300) {
+          throw Exception('download from bucket failed (${fileRes.statusCode})');
+        }
+
+        final destPath = await _localRestorePath(docPath);
+        await File(destPath).writeAsBytes(fileRes.bodyBytes);
+
+        if (name.toLowerCase().endsWith('.pdf')) {
+          await _restorePdfThumb(destPath);
+        }
+
+        succeeded++;
+        debugPrint('BackupService: restored $destPath');
+      } catch (e) {
+        failed++;
+        debugPrint('BackupService: failed to restore $docPath: $e');
+      }
+    }
+
+    onProgress?.call(rows.length, rows.length, '');
+    return BackupRetrieveResult(succeeded: succeeded, failed: failed);
+  }
+
+  /// Best-effort thumbnail regen for a restored PDF — mirrors
+  /// StoreService.makePdfThumb but swallows its own errors, since a
+  /// missing thumbnail just falls back to the grid's default PDF icon
+  /// and must never fail the whole restore over it.
+  static Future<void> _restorePdfThumb(String pdfPath) async {
+    pdfx.PdfDocument? doc;
+    try {
+      doc = await pdfx.PdfDocument.openFile(
+        pdfPath,
+      ).timeout(const Duration(seconds: 10));
+      final page = await doc.getPage(1);
+      final img = await page.render(width: page.width, height: page.height);
+      await page.close();
+      if (img == null || img.bytes.isEmpty) return;
+      await File('$pdfPath.thumb.jpg').writeAsBytes(img.bytes);
+    } catch (e) {
+      debugPrint('BackupService: thumbnail regen failed for $pdfPath: $e');
+    } finally {
+      await doc?.close();
+    }
+  }
+}
+
+/// Outcome of a retrieveBackups() call — how many of the requested files
+/// actually made it back onto the device.
+class BackupRetrieveResult {
+  final int succeeded;
+  final int failed;
+  const BackupRetrieveResult({required this.succeeded, required this.failed});
 }
