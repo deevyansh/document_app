@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
@@ -10,6 +12,50 @@ import 'package:sqflite/sqflite.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'constants.dart';
+
+// ── Per-file backup encryption ──────────────────────────────────────────
+//
+// Every file is encrypted (AES-256-GCM) with its own random key before it
+// ever leaves the device — the bucket only ever stores ciphertext. That
+// key is uploaded once, wrapped, to the backend (see /backup/init in
+// main.py), which stores it in Postgres and hands the unwrapped key back
+// only on an authenticated /backup/download call, so this device (or any
+// other device signed into the same account) can decrypt what it pulls
+// down. See encryption-system-plan.md for the full design and its
+// threat model (in short: this stops a leak of the bucket ALONE from
+// exposing anything readable, but the backend itself can always decrypt
+// — this is not a zero-knowledge/end-to-end design).
+//
+// Needs the `cryptography` package on pubspec.yaml (not editable from
+// here — add e.g. `cryptography: ^2.7.0` and run `flutter pub get`
+// before this compiles).
+final _fileCipher = AesGcm.with256bits();
+
+/// Generates a fresh random 256-bit key — a new one every time a file is
+/// (re-)uploaded, never reused across files or across re-uploads of the
+/// same doc_path.
+Future<SecretKey> _generateFileKey() => _fileCipher.newSecretKey();
+
+/// Encrypts [plaintext] with [key] and returns nonce ‖ ciphertext ‖ MAC as
+/// one blob — this exact blob is what gets uploaded to the bucket as the
+/// object, and what a later download hands back to [_decryptFile].
+Future<Uint8List> _encryptFile(Uint8List plaintext, SecretKey key) async {
+  final box = await _fileCipher.encrypt(plaintext, secretKey: key);
+  return Uint8List.fromList(box.concatenation());
+}
+
+/// Reverses [_encryptFile]. Throws if [key] is wrong or [envelope] was
+/// corrupted/tampered with (GCM's authentication check) — callers treat
+/// that the same as any other single-file restore failure.
+Future<Uint8List> _decryptFile(Uint8List envelope, SecretKey key) async {
+  final box = SecretBox.fromConcatenation(
+    envelope,
+    nonceLength: 12,
+    macLength: 16,
+  );
+  final plaintext = await _fileCipher.decrypt(box, secretKey: key);
+  return Uint8List.fromList(plaintext);
+}
 
 // ── Backup: local queue + OS-scheduled uploader ────────────────────────────
 //
@@ -54,6 +100,13 @@ const String _backupPeriodicUniqueName = 'docezy-backup-periodic';
 /// actually starts.
 const String _backupImmediateUniqueName = 'docezy-backup-immediate';
 
+/// Secure-storage key for the "Automatic Backup" toggle on Profile.
+/// Stored as the string 'true'/'false' via the shared `storage`
+/// (FlutterSecureStorage) from constants.dart — same pattern PinService
+/// uses for its own on/off flags. See [BackupService.isAutoBackupEnabled]
+/// for what "absent" means.
+const String _kAutoBackupEnabledKey = 'auto_backup_enabled';
+
 /// How often the OS runs the periodic sync.
 ///
 /// TESTING (current value): Android's WorkManager enforces a hard 15-minute
@@ -84,7 +137,13 @@ void backupCallbackDispatcher() {
     debugPrint('BackupService: WorkManager task fired ($task)');
     if (task == backupSyncTaskName) {
       try {
-        await BackupService.runPendingBackups();
+        if (await BackupService.isAutoBackupEnabled()) {
+          await BackupService.runPendingBackups();
+        } else {
+          debugPrint(
+            'BackupService: automatic backup is off — skipping scheduled sync',
+          );
+        }
       } catch (e) {
         // Swallow it — WorkManager already retries a failed task on its
         // own backoff policy, and runPendingBackups() itself marks
@@ -161,10 +220,52 @@ class BackupService {
     }
   }
 
+  // ── Automatic backup toggle (Profile → Automatic Backup) ────────────────
+  //
+  // A single on/off switch, persisted in the same secure storage used
+  // everywhere else in this app (see constants.dart's `storage`). It only
+  // gates the *automatic* path — new documents getting queued
+  // (registerPendingBackup) and the periodic/immediate WorkManager sync
+  // actually uploading (backupCallbackDispatcher above). It deliberately
+  // does not touch explicit, user-initiated actions elsewhere (e.g.
+  // "Backup All Now" on the Backup Status screen, or restore) — those are
+  // a one-off request the user just made, not the automatic background
+  // behaviour this switch controls.
+
+  /// Whether automatic backup is currently turned on. Nothing stored yet
+  /// (a fresh install, or an existing install that predates this toggle)
+  /// is treated as enabled, so introducing this switch doesn't silently
+  /// stop backing up anyone's documents — it only takes effect once a
+  /// user actually flips it off.
+  static Future<bool> isAutoBackupEnabled() async {
+    final value = await storage.read(key: _kAutoBackupEnabledKey);
+    return value != 'false';
+  }
+
+  /// Turns automatic backup on/off and persists the choice. Safe to call
+  /// as often as the user flips the switch — it only ever writes this one
+  /// key.
+  static Future<void> setAutoBackupEnabled(bool enabled) async {
+    await storage.write(
+      key: _kAutoBackupEnabledKey,
+      value: enabled.toString(),
+    );
+    debugPrint(
+      'BackupService: automatic backup turned ${enabled ? 'on' : 'off'}',
+    );
+  }
+
   /// Queue doc_path for backup. Safe to call again for the same doc_path
   /// (e.g. a note that gets edited and re-saved at its existing path) —
   /// it just resets that row back to 'pending'.
   static Future<void> registerPendingBackup(String docPath) async {
+    if (!await isAutoBackupEnabled()) {
+      debugPrint(
+        'BackupService: automatic backup is off — not queuing $docPath',
+      );
+      return;
+    }
+
     final db = await _db();
     await db.insert(
       'backup_queue',
@@ -313,8 +414,17 @@ class BackupService {
           whereArgs: [docPath],
         );
 
-        final bytes = await file.readAsBytes();
+        final plaintextBytes = await file.readAsBytes();
         final contentType = _contentTypeFor(docPath);
+
+        // Encrypt before any of this leaves the device — the bucket
+        // never sees plaintext. Fresh key every time, including a
+        // re-upload of the same doc_path (an edited note re-saved at its
+        // existing path, say), so re-saving something never reuses an
+        // old key.
+        final fileKey = await _generateFileKey();
+        final bytes = await _encryptFile(plaintextBytes, fileKey);
+        final fileKeyB64 = base64Encode(await fileKey.extractBytes());
 
         final initRes = await http
             .post(
@@ -327,6 +437,7 @@ class BackupService {
                 'doc_path': docPath,
                 'content_type': contentType,
                 'size': bytes.length,
+                'file_key': fileKeyB64,
               }),
             )
             .timeout(const Duration(seconds: 30));
@@ -336,6 +447,36 @@ class BackupService {
         }
         final initData = jsonDecode(initRes.body) as Map<String, dynamic>;
         if(initData["success"] == false) {
+          if (initData['reason'] == 'quota_exceeded') {
+            // Account is at (or would exceed) its 20GB backup cap — this
+            // file is perfectly fine, it just doesn't fit right now.
+            // Unlike the orphan-file case below, never delete the local
+            // file or drop the queue row over this: mark it 'failed'
+            // (same status/shape as any other retryable upload problem,
+            // so it's picked up again automatically once the account is
+            // back under the cap — e.g. after the user deletes something
+            // or a "Backup All Now" retry) and move on to the next file.
+            final attempts = (row['attempts'] as int? ?? 0) + 1;
+            await db.update(
+              'backup_queue',
+              {
+                'status': 'failed',
+                'attempts': attempts,
+                'last_error':
+                    'Storage limit reached (20GB) — free up space to resume backups.',
+                'updated_at': DateTime.now().toIso8601String(),
+              },
+              where: 'doc_path = ?',
+              whereArgs: [docPath],
+            );
+            debugPrint(
+              'BackupService: $docPath not backed up — storage quota exceeded',
+            );
+            continue;
+          }
+          // Orphan/malicious-file guard (backup-system-plan.md §11) —
+          // unchanged: this doc_path has no docs-table row at all, so the
+          // file itself doesn't belong and is dropped for good.
           await db.delete('backup_queue', where: 'doc_path = ?', whereArgs: [docPath]);
           if(await File(docPath).exists()) {
             await File(docPath).delete();
@@ -492,6 +633,39 @@ class BackupService {
     );
   }
 
+  /// This account's usage against the 20GB backup cap enforced in
+  /// /backup/init (see BACKUP_QUOTA_BYTES in main.py). Powers the storage
+  /// bar on the Backup Status screen. Throws the same way getStatus()
+  /// does (no connection / not logged in / server error) — callers
+  /// should show a retry state rather than a stale figure.
+  static Future<BackupUsage> getStorageUsage() async {
+    final token = await storage.read(key: 'token');
+    if (token == null) {
+      throw Exception('Not logged in');
+    }
+
+    final res = await http
+        .post(
+          Uri.parse('$baseUrl/backup/usage'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 30));
+
+    if (res.statusCode != 200) {
+      throw Exception('backup/usage failed (${res.statusCode})');
+    }
+
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return BackupUsage(
+      usedBytes: (data['used_bytes'] as num).toInt(),
+      quotaBytes: (data['quota_bytes'] as num).toInt(),
+      remainingBytes: (data['remaining_bytes'] as num).toInt(),
+    );
+  }
+
   /// "Backup All Files Now" on the Backup Status screen. Three steps:
   ///
   /// 1. Ask the backend which files are already backed up (same call as
@@ -506,12 +680,23 @@ class BackupService {
   ///    (its docs-table row already exists server-side, since import has
   ///    always called /send-document synchronously, but its *file* was
   ///    never queued for backup) as well as the "reinstalled the app"
-  ///    case for anything that genuinely was never uploaded.
+  ///    case for anything that genuinely was never uploaded. A file
+  ///    that's already in the queue with status 'failed' (including a
+  ///    previous 'quota_exceeded' failure — see runPendingBackups above)
+  ///    is left alone here rather than reset — step 3 already retries
+  ///    every 'pending'/'failed'/'uploading' row, so no special-casing is
+  ///    needed to give a quota-blocked file another attempt once the
+  ///    user has freed up space and taps this button again.
   /// 3. Runs the upload pass synchronously (awaited in the foreground,
   ///    not scheduled as a background WorkManager task) so the caller can
   ///    show a blocking loading dialog for the duration, then re-queries
   ///    the backend once more via getStatus() so the returned summary
   ///    reflects what actually landed.
+  ///
+  /// This is a deliberate, explicit user action (the user tapped "Backup
+  /// All Now"), so — unlike registerPendingBackup()/the scheduled sync —
+  /// it always runs, whether or not the Automatic Backup switch on
+  /// Profile is on.
   static Future<BackupStatusSummary> backupAllNow() async {
     final files = await _listDocumentFiles();
     final backedUpNames = await _fetchBackedUpFilenames();
@@ -648,9 +833,12 @@ class BackupService {
         if (downloadRes.statusCode != 200) {
           throw Exception('backup/download failed (${downloadRes.statusCode})');
         }
-        final downloadUrl =
-            (jsonDecode(downloadRes.body) as Map<String, dynamic>)['download_url']
-                as String;
+        final downloadData = jsonDecode(downloadRes.body) as Map<String, dynamic>;
+        final downloadUrl = downloadData['download_url'] as String;
+        // Present for anything uploaded after encryption shipped; null
+        // for a legacy backup uploaded before that (its bytes are
+        // already plaintext — see main.py's backup_download).
+        final fileKeyB64 = downloadData['file_key'] as String?;
 
         final fileRes = await http
             .get(Uri.parse(downloadUrl))
@@ -659,8 +847,14 @@ class BackupService {
           throw Exception('download from bucket failed (${fileRes.statusCode})');
         }
 
+        Uint8List fileBytes = fileRes.bodyBytes;
+        if (fileKeyB64 != null) {
+          final key = SecretKeyData(base64Decode(fileKeyB64));
+          fileBytes = await _decryptFile(fileBytes, key);
+        }
+
         final destPath = await _localRestorePath(docPath);
-        await File(destPath).writeAsBytes(fileRes.bodyBytes);
+        await File(destPath).writeAsBytes(fileBytes);
 
         if (name.toLowerCase().endsWith('.pdf')) {
           await _restorePdfThumb(destPath);
@@ -793,4 +987,32 @@ class BackupStatusSummary {
     required this.backedUp,
     required this.notBackedUp,
   });
+}
+
+/// This account's usage against the 20GB backup cap (BACKUP_QUOTA_BYTES
+/// in main.py, enforced in /backup/init and reported by /backup/usage).
+class BackupUsage {
+  final int usedBytes;
+  final int quotaBytes;
+  final int remainingBytes;
+  const BackupUsage({
+    required this.usedBytes,
+    required this.quotaBytes,
+    required this.remainingBytes,
+  });
+
+  /// 0.0–1.0, clamped — a defensive clamp against the edge case where
+  /// usedBytes could momentarily read fractionally over quotaBytes (a
+  /// race between two concurrent uploads finishing right at the cap)
+  /// rather than ever showing a progress bar over 100%. Written as an
+  /// explicit if/else rather than num.clamp() — num.clamp() returns
+  /// `num`, not `double`, which doesn't satisfy this getter's return
+  /// type without an extra cast.
+  double get fraction {
+    if (quotaBytes <= 0) return 0.0;
+    final f = usedBytes / quotaBytes;
+    if (f < 0.0) return 0.0;
+    if (f > 1.0) return 1.0;
+    return f;
+  }
 }

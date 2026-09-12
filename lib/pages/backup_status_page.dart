@@ -4,10 +4,11 @@ import '../backup_service.dart';
 import '../widgets/loading_dialog.dart';
 
 /// Reached from Profile → "Backup Status". Shows how many of this
-/// device's documents are backed up right now, and lets the user force an
-/// immediate backup via [BackupService.backupAllNow] — which also
-/// backfills any pre-existing document that predates the backup_queue
-/// table entirely (see the comment on backupAllNow()).
+/// device's documents are backed up right now, how much of the account's
+/// 20GB backup storage cap is used, and lets the user force an immediate
+/// backup via [BackupService.backupAllNow] — which also backfills any
+/// pre-existing document that predates the backup_queue table entirely
+/// (see the comment on backupAllNow()).
 class BackupStatusPage extends StatefulWidget {
   const BackupStatusPage({super.key});
 
@@ -20,6 +21,7 @@ class _BackupStatusPageState extends State<BackupStatusPage> {
   bool _runningBackup = false;
   String? _error;
   BackupStatusSummary? _summary;
+  BackupUsage? _usage;
 
   @override
   void initState() {
@@ -32,20 +34,34 @@ class _BackupStatusPageState extends State<BackupStatusPage> {
       _loading = true;
       _error = null;
     });
+
+    // Fetched independently, not via Future.wait: the storage-usage call
+    // is a nice-to-have on this screen (it just hides the storage bar if
+    // it fails), and must never turn into a full error state for a
+    // screen whose main job — the backed-up/not-backed-up counts — could
+    // otherwise have loaded fine.
+    BackupStatusSummary? summary;
+    String? error;
     try {
-      final summary = await BackupService.getStatus();
-      if (!mounted) return;
-      setState(() {
-        _summary = summary;
-        _loading = false;
-      });
+      summary = await BackupService.getStatus();
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = "Couldn't load backup status.";
-      });
+      error = "Couldn't load backup status.";
     }
+
+    BackupUsage? usage;
+    try {
+      usage = await BackupService.getStorageUsage();
+    } catch (_) {
+      // Non-fatal — the storage section just doesn't render this time.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _summary = summary;
+      _usage = usage;
+      _loading = false;
+      _error = summary == null ? error : null;
+    });
   }
 
   void _showMessage(String message, {bool isError = false}) {
@@ -65,10 +81,20 @@ class _BackupStatusPageState extends State<BackupStatusPage> {
 
     try {
       final summary = await BackupService.backupAllNow();
+
+      // Best-effort refresh — a failure here shouldn't stop the summary
+      // above from being shown; the storage bar just keeps its last known
+      // value until the next successful load.
+      BackupUsage? usage;
+      try {
+        usage = await BackupService.getStorageUsage();
+      } catch (_) {}
+
       if (!mounted) return;
       hideLoadingDialog(context);
       setState(() {
         _summary = summary;
+        if (usage != null) _usage = usage;
         _runningBackup = false;
       });
 
@@ -80,11 +106,15 @@ class _BackupStatusPageState extends State<BackupStatusPage> {
         final justNow = before == null
             ? summary.backedUp
             : (summary.backedUp - before.backedUp).clamp(0, summary.total);
+        final quotaFull = usage != null && usage.remainingBytes <= 0;
+        final advice = quotaFull
+            ? "You've reached your 20GB backup limit. Delete some files to "
+                "free up space and try again."
+            : "Check your connection and try again.";
         _showMessage(
           "${summary.backedUp} of ${summary.total} document(s) backed up"
           "${justNow > 0 ? ' ($justNow just now)' : ''} — "
-          "${summary.notBackedUp} couldn't be backed up right now. "
-          "Check your connection and try again.",
+          "${summary.notBackedUp} couldn't be backed up right now. $advice",
           isError: true,
         );
       }
@@ -136,6 +166,80 @@ class _BackupStatusPageState extends State<BackupStatusPage> {
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Human-readable size, e.g. "1.2 GB" / "340 MB" / "512 KB" / "0 B".
+  static String _formatBytes(int bytes) {
+    const kb = 1024;
+    const mb = kb * 1024;
+    const gb = mb * 1024;
+    if (bytes >= gb) return '${(bytes / gb).toStringAsFixed(1)} GB';
+    if (bytes >= mb) return '${(bytes / mb).toStringAsFixed(0)} MB';
+    if (bytes >= kb) return '${(bytes / kb).toStringAsFixed(0)} KB';
+    return '$bytes B';
+  }
+
+  /// Storage-cap bar: how much of the account's 20GB is used, and how
+  /// much is left. Backed by the same figures /backup/init enforces
+  /// against (BACKUP_QUOTA_BYTES in main.py), so this never shows a
+  /// number the backend isn't actually acting on.
+  Widget _buildStorageSection(BackupUsage usage) {
+    final full = usage.remainingBytes <= 0;
+    final nearlyFull = !full && usage.fraction >= 0.9;
+    final barColor = full
+        ? Colors.red
+        : nearlyFull
+            ? Colors.orange
+            : Theme.of(context).colorScheme.primary;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Storage",
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                "${_formatBytes(usage.usedBytes)} of ${_formatBytes(usage.quotaBytes)}",
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: usage.fraction,
+              minHeight: 10,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            full
+                ? "Storage full — delete some files to back up more."
+                : "${_formatBytes(usage.remainingBytes)} remaining",
+            style: TextStyle(
+              fontSize: 12,
+              color: full ? Colors.red.shade700 : Colors.grey.shade600,
+              fontWeight: full ? FontWeight.w600 : FontWeight.normal,
+            ),
           ),
         ],
       ),
@@ -207,6 +311,7 @@ class _BackupStatusPageState extends State<BackupStatusPage> {
     }
 
     final summary = _summary!;
+    final usage = _usage;
 
     return RefreshIndicator(
       onRefresh: _loadStatus,
@@ -239,7 +344,8 @@ class _BackupStatusPageState extends State<BackupStatusPage> {
               ),
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+          if (usage != null) _buildStorageSection(usage),
           if (summary.notBackedUp > 0)
             Container(
               padding: const EdgeInsets.all(14),

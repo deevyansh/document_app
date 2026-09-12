@@ -45,6 +45,7 @@ import 'pages/search_page.dart';
 import 'pin_service.dart';
 import 'pages/pin_lock_page.dart';
 import 'pages/pin_setup_page.dart';
+import 'pages/backup_status_page.dart';
 import 'store_service.dart';
 import 'merge_service.dart';
 import 'backup_service.dart';
@@ -83,6 +84,11 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+/// The two ways a user can respond to the "some files aren't backed up
+/// yet" warning shown by [MyHomePageState._confirmLogout] right before a
+/// logout that would lose local-only files.
+enum _LogoutChoice { logoutAnyway, goToBackupStatus }
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -1427,6 +1433,73 @@ class MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  /// Gate in front of [_logout]: logging out wipes every local document
+  /// (see [BackupService.clearLocalAccountData]), so anything that isn't
+  /// backed up yet is gone for good the moment this runs. Checks how many
+  /// local documents aren't backed up right now and, if there are any,
+  /// asks the user how they want to proceed instead of silently losing
+  /// files. Falls back to logging out directly if the check itself can't
+  /// be completed (e.g. no connection) — there's nothing more specific to
+  /// warn about in that case, and blocking logout entirely over a failed
+  /// status check would be worse than just proceeding.
+  Future<void> _confirmLogout() async {
+    BackupStatusSummary? summary;
+    try {
+      summary = await BackupService.getStatus();
+    } catch (_) {
+      summary = null;
+    }
+
+    final notBackedUp = summary?.notBackedUp ?? 0;
+    if (notBackedUp <= 0) {
+      await _logout();
+      return;
+    }
+
+    if (!mounted) return;
+    final choice = await showDialog<_LogoutChoice>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Some files aren't backed up"),
+        content: Text(
+          notBackedUp == 1
+              ? "1 file isn't backed up yet and will be lost from this "
+                "device if you log out now."
+              : "$notBackedUp files aren't backed up yet and will be lost "
+                "from this device if you log out now.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(context, _LogoutChoice.logoutAnyway),
+            child: const Text("Log Out Anyway"),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, _LogoutChoice.goToBackupStatus),
+            child: const Text("Go to Backup Status"),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == _LogoutChoice.logoutAnyway) {
+      await _logout();
+    } else if (choice == _LogoutChoice.goToBackupStatus) {
+      // Deliberately does NOT log out — this takes the user to Backup
+      // Status so they can back up what's missing (or free up storage if
+      // that's why it's stuck) first. They can come back and log out
+      // again from Profile once ready; at that point, if nothing's left
+      // unbacked-up, this dialog won't show at all.
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const BackupStatusPage()),
+      );
+    }
+  }
+
   Future<void> _deleteaccount() async {
     final token = await storage.read(key: 'token');
 
@@ -1824,7 +1897,7 @@ class MyHomePageState extends State<MyHomePage> {
             if (action == ProfilePageAction.deleteaccount) {
               await _deleteaccount();
             } else if (action == ProfilePageAction.logout) {
-              await _logout();
+              await _confirmLogout();
             }
           },
         ),

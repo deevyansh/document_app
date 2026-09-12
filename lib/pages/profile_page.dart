@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 import '../constants.dart';
 import '../pin_service.dart';
+import '../backup_service.dart';
 import 'admin_stats_page.dart';
 import 'backup_status_page.dart';
 import 'pin_setup_page.dart';
@@ -28,6 +29,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final _picker = ImagePicker();
   File? _profileimage;
   bool _pinEnabled = false;
+  bool _autoBackupEnabled = true;
 
   // Hidden admin entry point: tapping the "Profile" app bar title 3 times
   // within [_adminTapWindow] opens AdminStatsPage — but only for
@@ -61,6 +63,12 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _pinEnabled = enabled);
   }
 
+  Future<void> _loadAutoBackupStatus() async {
+    final enabled = await BackupService.isAutoBackupEnabled();
+    if (!mounted) return;
+    setState(() => _autoBackupEnabled = enabled);
+  }
+
   void _showError(String message) {
     if (!mounted) return;
 
@@ -84,6 +92,7 @@ class _ProfilePageState extends State<ProfilePage> {
     super.initState();
     _loadProfileImage();
     _loadPinStatus();
+    _loadAutoBackupStatus();
   }
 
   @override
@@ -223,6 +232,18 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  /// Flips the "Automatic Backup" switch: persists the choice via
+  /// BackupService, then updates the UI to match. When turned on, newly
+  /// created documents/notes go back to being queued and uploaded as
+  /// usual (and the next periodic sync resumes); when turned off, nothing
+  /// new gets queued and the periodic sync skips itself, so no backup is
+  /// taken until it's switched back on.
+  Future<void> _handleAutoBackupToggle(bool value) async {
+    await BackupService.setAutoBackupEnabled(value);
+    if (!mounted) return;
+    setState(() => _autoBackupEnabled = value);
+  }
+
   Future<void> _confirmDeleteAccount() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -302,6 +323,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       children: [
         SwitchListTile(
+          secondary: const Icon(Icons.lock_outline),
           title: const Text('App Lock'),
           subtitle: const Text('Require a PIN to open DocEzy'),
           value: _pinEnabled,
@@ -320,6 +342,19 @@ class _ProfilePageState extends State<ProfilePage> {
             },
           ),
       ],
+    );
+  }
+
+  /// Automatic-backup toggle row: when on, newly created documents/notes
+  /// are queued and uploaded as usual; when off, nothing new is backed up
+  /// until it's switched back on.
+  Widget _buildAutoBackupSection() {
+    return SwitchListTile(
+      secondary: const Icon(Icons.backup_outlined),
+      title: const Text('Automatic Backup'),
+      subtitle: const Text('Automatically back up new documents and notes'),
+      value: _autoBackupEnabled,
+      onChanged: _handleAutoBackupToggle,
     );
   }
 
@@ -357,9 +392,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  /// Groups App Lock / Change PIN / Backup Status / About / Leave a
-  /// Review into one card so the settings rows read as a single cohesive
-  /// block.
+  /// Groups App Lock / Change PIN / Automatic Backup / Backup Status /
+  /// About / Leave a Review into one card so the settings rows read as a
+  /// single cohesive block.
   Widget _buildSettingsCard() {
     return Container(
       decoration: BoxDecoration(
@@ -371,6 +406,8 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Column(
         children: [
           _buildPinSection(),
+          const Divider(height: 1),
+          _buildAutoBackupSection(),
           const Divider(height: 1),
           _buildMoreSection(),
         ],
