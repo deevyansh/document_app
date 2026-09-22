@@ -46,6 +46,8 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
       onError: _showError,
       onLoad:  _load,
     );
+    late final SearchSuggestionService _searchSuggestionService =SearchSuggestionService();
+    List<String> _suggestions=[];
 
      void _showSuccess(String message) {
           if (!mounted) return;
@@ -79,32 +81,10 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         return hindiReady && englishReady;
     }
 
-    // True if [text] contains a Devanagari character — used to pick which
-    // direction to translate a word in, instead of always running both
-    // directions on the whole query (the old behaviour). A word already in
-    // Hindi script only needs hi->en; anything else (English, or Hindi
-    // typed in Latin script like "bijli") only needs en->hi, and
-    // separately gets a transliteration attempt below.
     bool _looksHindi(String text) {
         return RegExp(r'[ऀ-ॿ]').hasMatch(text);
     }
 
-    // Builds one {"word", "variants"} entry per word the user typed, doing
-    // every translation/transliteration on-device (ML Kit's
-    // OnDeviceTranslator — the same _enToHi/_hiToEn instances used
-    // elsewhere on this page — plus the same Input Tools transliteration
-    // call as _hindiToEnglishTransliteration below). This used to be done
-    // server-side (main.py calling out to translate.google.com /
-    // inputtools.google.com on every search), which put a network round
-    // trip in the middle of every search. Doing it here instead means it
-    // runs against models already downloaded to the device, so it's fast
-    // and works offline — the backend now just receives the finished
-    // variants and searches with them, no translation calls of its own.
-    //
-    // Per-word (not per-phrase, like the old single combined-string
-    // approach) so the backend can take the MAX match across a word's own
-    // variants without accidentally bundling in a neighbouring word's
-    // translation.
     Future<List<Map<String, dynamic>>> _buildSearchTerms(String raw) async {
         final words = raw
             .trim()
@@ -173,6 +153,23 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         }
     }
 
+    Future<void> initialize() async{
+        await _searchSuggestionService.initialize();
+        _queryController.addListener(() async{
+            if(_queryController.text==""){
+                setState((){
+                    _suggestions=[];
+                });
+            }
+            else{
+                final new_suggestion= await _searchSuggestionService.query(_queryController.text);
+                setState((){
+                    _suggestions=new_suggestion;
+                });
+            }
+        });
+    }
+
     @override
     void initState() {
         super.initState();
@@ -180,6 +177,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         WidgetsBinding.instance.addPostFrameCallback((_) {
         _attemptFocus();
         });
+        initialize();
     }
 
     @override
@@ -221,6 +219,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         _queryController.dispose();
         _queryFocusNode.dispose();
         _storeService.dispose();
+        _searchSuggestionService.close();
         super.dispose();
     }
 
@@ -354,10 +353,12 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         setState((){
             _isSearching=true;
             _loadMore=false;
+            _suggestions=[];
         });
         final token = await storage.read(key: 'token');
         if (token == null) return;
         final raw = _queryController.text.trim();
+        _searchSuggestionService.update(_queryController.text);
 
         // Every word's Hindi/English translation + transliteration
         // variants, computed on-device — see _buildSearchTerms() above.
@@ -609,6 +610,86 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         }
     }
 
+
+    void _suggestionTap (String word){
+        _queryController.text=word;
+        _queryFocusNode.unfocus();
+        _queryDocument();
+    }
+
+
+    Future<void> _deleteSuggestion(String word) async {
+        final shouldDelete = await showDialog<bool>(
+            context: context,
+            builder: (context) {
+                return AlertDialog(
+                    title: const Text("Delete suggestion?"),
+                    content: Text(
+                        'Remove "$word" from your search suggestions?',
+                    ),
+                    actions: [
+                        TextButton(
+                            onPressed: () {
+                                Navigator.pop(context, false);
+                            },
+                            child: const Text("Cancel"),
+                        ),
+                        TextButton(
+                            onPressed: () {
+                                Navigator.pop(context, true);
+                            },
+                            child: const Text("Delete"),
+                        ),
+                    ],
+                );
+            },
+        );
+
+        if (shouldDelete == true) {
+            await _searchSuggestionService.delete_word(word);
+
+            final newSuggestions =
+                await _searchSuggestionService.query(_queryController.text);
+
+            setState(() {
+                _suggestions = newSuggestions;
+            });
+        }
+    }
+
+    Widget searchSuggestionWidget(){
+        return ListView.builder(
+            shrinkWrap: true,
+            itemCount: _suggestions.length,
+            itemBuilder: (context, index) {
+                final query = _queryController.text;
+                final prefix = _suggestions[index].substring(0, query.length);
+                final remaining = _suggestions[index].substring(query.length);
+                return ListTile(
+                    leading: Icon(Icons.history),
+                    title: RichText(
+                        text: TextSpan(
+                            children: [
+                            TextSpan(
+                                text: prefix,
+                                style: TextStyle(color: Colors.grey[600], fontSize: 18),
+                            ),
+                            TextSpan(
+                                text: remaining,
+                                style: TextStyle(color: Colors.black, fontSize: 18),
+                            ),
+                            ],
+                        ),
+                    ),
+                    onTap:(){_suggestionTap(_suggestions[index]);},
+                    onLongPress: (){
+                        _deleteSuggestion(_suggestions[index]);
+                    }
+                );
+            },
+        );
+    }
+
     @override
     Widget build(BuildContext context) {
         return Scaffold(
@@ -705,28 +786,32 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
                 ],
                 ),
             ),
+            if (_suggestions.isNotEmpty && !_isSearching && _queryFocusNode.hasFocus)
+                searchSuggestionWidget(),
             Expanded(
                 child: _isSearching
                     ? const Center(child: CircularProgressIndicator())
                     : !_hasSearched
-                        ? const Center(
-                            child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                                Icon(Icons.search, size: 80, color: Colors.grey),
-                                SizedBox(height: 16),
-                                Text(
-                                'Search your documents',
-                                style: TextStyle(fontSize: 18),
+                        ? _suggestions.isEmpty
+                            ? const Center(
+                                child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                    Icon(Icons.search, size: 80, color: Colors.grey),
+                                    SizedBox(height: 16),
+                                    Text(
+                                    'Search your documents',
+                                    style: TextStyle(fontSize: 18),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                    'Type a keyword or tap the mic to search by voice',
+                                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                                    ),
+                                ],
                                 ),
-                                SizedBox(height: 4),
-                                Text(
-                                'Type a keyword or tap the mic to search by voice',
-                                style: TextStyle(fontSize: 13, color: Colors.grey),
-                                ),
-                            ],
-                            ),
-                        )
+                            )
+                            : const SizedBox.shrink()
                         : _queryphotos.isEmpty
                             ? Center(
                                 child: Column(

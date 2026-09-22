@@ -32,7 +32,7 @@ class SearchSuggestionService{
                 for(final word in words){
                     await db.execute(
                         "INSERT INTO search_suggestion (word, time) VALUES (?,?) ON CONFLICT(word) DO UPDATE SET time=excluded.time",
-                        [word, DateTime.now().millisecondsSinceEpoch(),]
+                        [word, DateTime.now().millisecondsSinceEpoch,]
                     );
                 }
             }
@@ -42,7 +42,7 @@ class SearchSuggestionService{
     Future<void> update(String word) async{
         await db.execute("""
             INSERT INTO search_suggestion (word,time) VALUES (?,?) ON CONFLICT(word) DO UPDATE SET time=excluded.time""",
-            [word.toLowerCase(),DateTime.now().millisecondsSinceEpoch(),]
+            [word.toLowerCase(),DateTime.now().millisecondsSinceEpoch,]
         );
     }
 
@@ -58,7 +58,20 @@ class SearchSuggestionService{
         return suggestions;
     }
 
-    Future<void> clear() async{
-        await db.delete('search_suggestion');
+    Future<void> delete_word(String word) async{
+        await db.execute("""
+            DELETE FROM search_suggestion WHERE word=?""",
+            [word.toLowerCase(),]
+        );
+    }
+
+    Future<void> delete_all() async{
+        await db.execute("""
+            DELETE FROM search_suggestion
+        """);
+    }
+    
+    Future<void> close() async {
+        await db.close();
     }
 }
