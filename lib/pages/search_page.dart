@@ -19,6 +19,7 @@ import '../merge_service.dart';
 import '../store_service.dart';
 import '../widgets/loading_dialog.dart';
 import '../backup_service.dart';
+import '../searchsuggestion_service.dart';
 
 class SearchPage extends StatefulWidget {
   final bool autoStartListening;
@@ -76,6 +77,83 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
             TranslateLanguage.english.bcpCode,
         );
         return hindiReady && englishReady;
+    }
+
+    // True if [text] contains a Devanagari character — used to pick which
+    // direction to translate a word in, instead of always running both
+    // directions on the whole query (the old behaviour). A word already in
+    // Hindi script only needs hi->en; anything else (English, or Hindi
+    // typed in Latin script like "bijli") only needs en->hi, and
+    // separately gets a transliteration attempt below.
+    bool _looksHindi(String text) {
+        return RegExp(r'[ऀ-ॿ]').hasMatch(text);
+    }
+
+    // Builds one {"word", "variants"} entry per word the user typed, doing
+    // every translation/transliteration on-device (ML Kit's
+    // OnDeviceTranslator — the same _enToHi/_hiToEn instances used
+    // elsewhere on this page — plus the same Input Tools transliteration
+    // call as _hindiToEnglishTransliteration below). This used to be done
+    // server-side (main.py calling out to translate.google.com /
+    // inputtools.google.com on every search), which put a network round
+    // trip in the middle of every search. Doing it here instead means it
+    // runs against models already downloaded to the device, so it's fast
+    // and works offline — the backend now just receives the finished
+    // variants and searches with them, no translation calls of its own.
+    //
+    // Per-word (not per-phrase, like the old single combined-string
+    // approach) so the backend can take the MAX match across a word's own
+    // variants without accidentally bundling in a neighbouring word's
+    // translation.
+    Future<List<Map<String, dynamic>>> _buildSearchTerms(String raw) async {
+        final words = raw
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((w) => w.isNotEmpty)
+            .toList();
+        if (words.isEmpty) return [];
+
+        final modelsReady = await _translationModelsReady();
+        final terms = <Map<String, dynamic>>[];
+
+        for (final word in words) {
+            final variants = <String>{word};
+
+            if (modelsReady) {
+                try {
+                    final translator = _looksHindi(word) ? _hiToEn : _enToHi;
+                    final translated = await translator.translateText(word);
+                    if (translated.trim().isNotEmpty) {
+                        variants.add(translated.trim());
+                    }
+                } catch (e) {
+                    debugPrint('translation failed for "$word": $e');
+                }
+            }
+
+            // Separately: in case this word is Hindi typed in Latin script
+            // ("bijli"), transliterate it to Devanagari ("बिजली") and, if
+            // the models are ready, translate that back to English too
+            // ("bijli" -> "बिजली" -> "electricity").
+            final translit = await _transliterate(word);
+            if (translit != null && translit.isNotEmpty) {
+                variants.add(translit);
+                print("here is the model ready status: $modelsReady");
+                if (modelsReady) {
+                    try {
+                        final en = await _hiToEn.translateText(translit);
+                        print("here is the model translation: $en");
+                        if (en.trim().isNotEmpty) variants.add(en.trim());
+                    } catch (e) {
+                        debugPrint('translation failed for "$translit": $e');
+                    }
+                }
+            }
+
+            terms.add({'word': word, 'variants': variants.toList()});
+        }
+
+        return terms;
     }
 
     Future<void> delete(List<String> files) async {
@@ -249,7 +327,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
                 '&itc=hi-t-i0-und'
                 '&num=1&cp=0&cs=1&ie=utf-8&oe=utf-8',
             );
-            final res = await http.get(uri).timeout(const Duration(seconds: 3));
+            final res = await http.get(uri).timeout(const Duration(seconds: 10));
             if (res.statusCode != 200) return null;
 
             final data = jsonDecode(res.body);
@@ -280,23 +358,10 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         final token = await storage.read(key: 'token');
         if (token == null) return;
         final raw = _queryController.text.trim();
-        final terms = <String>{raw};
-        if (await _translationModelsReady()) {
-            final results = await Future.wait([
-                _enToHi.translateText(raw),
-                _hiToEn.translateText(raw),
-            ]);
-            terms.addAll(results);
-        }
 
-        final translit = await _transliterate(raw);
-
-        if(translit!=null){
-            if(!terms.contains(translit)){
-                terms.add(translit!);
-            }
-        }
-        final combined = terms.join(' ');
+        // Every word's Hindi/English translation + transliteration
+        // variants, computed on-device — see _buildSearchTerms() above.
+        final terms = await _buildSearchTerms(raw);
 
         String? x;
         if (_typefilter == DocumentTypeFilter.all) {
@@ -308,7 +373,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         }
         final res = await _safePost(
             "/search-document",
-            {'user_query': combined, 'type_filter': x},
+            {'terms': terms, 'user_query': raw, 'type_filter': x},
             extraHeaders: {'Authorization': 'Bearer $token'},
         );
         if (res == null) {

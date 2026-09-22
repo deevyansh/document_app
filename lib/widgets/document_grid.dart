@@ -26,6 +26,20 @@ class DocumentGrid extends StatelessWidget {
     this.childAspectRatio = 0.75,
   });
 
+  /// Best-effort "version" for a file on disk — its last-modified time in
+  /// milliseconds, or 0 if the file doesn't exist (yet). Folding this into
+  /// an Image.file's widget `key` means a thumbnail regenerated at the same
+  /// path (a PDF's `<path>.thumb.jpg` is always rewritten in place) is
+  /// treated as a brand-new image instead of Flutter silently reusing
+  /// whatever it already has cached for that exact file path + size.
+  static int _fileVersion(File file) {
+    try {
+      return file.lastModifiedSync().millisecondsSinceEpoch;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   static Widget buildTile({
     required File file,
     required bool isSelectionMode,
@@ -35,6 +49,7 @@ class DocumentGrid extends StatelessWidget {
   }) {
     final isPdf = file.path.endsWith('.pdf');
     final isNote = file.path.endsWith('.json');
+    final thumbFile = isPdf ? File('${file.path}.thumb.jpg') : null;
 
     return GestureDetector(
       onTap: onTap,
@@ -46,7 +61,14 @@ class DocumentGrid extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               child: isPdf
                   ? Image.file(
-                      File('${file.path}.thumb.jpg'),
+                      thumbFile!,
+                      // Ties this widget (and Flutter's resolve of its
+                      // image) to the thumbnail's current mtime, so a
+                      // regenerated thumb at the same path is loaded fresh
+                      // instead of showing whatever was cached before.
+                      key: ValueKey(
+                        '${thumbFile.path}#${_fileVersion(thumbFile)}',
+                      ),
                       fit: BoxFit.cover,
                       cacheWidth: 500,
                     )
