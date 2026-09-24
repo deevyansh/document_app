@@ -30,6 +30,7 @@ class _ProfilePageState extends State<ProfilePage> {
   File? _profileimage;
   bool _pinEnabled = false;
   bool _autoBackupEnabled = true;
+  bool _searchHistoryStatus = true;
 
   // Hidden admin entry point: tapping the "Profile" app bar title 3 times
   // within [_adminTapWindow] opens AdminStatsPage — but only for
@@ -69,6 +70,38 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _autoBackupEnabled = enabled);
   }
 
+  Future<void> _loadSearchHistoryStatus() async {
+    final exists = await storage.containsKey(key: 'searchhistory');
+    if (!exists) {
+      await storage.write(
+        key: 'searchhistory',
+        value: 'true',
+      );
+    }
+    final enabled = await storage.read(key: 'searchhistory');
+    if (!mounted) return;
+    setState(() {
+      _searchHistoryStatus = enabled == 'true';
+    });
+  }
+
+  Future<void> _toggleSearchHistoryStatus(bool value) async{
+    final enabled=await storage.read(key: 'searchhistory');
+    if(!mounted) return;
+    if(enabled=="true"){
+      await storage.write(key: 'searchhistory',value:'false');
+      setState((){
+        _searchHistoryStatus = false;
+      });
+    }
+    else{
+      await storage.write(key: 'searchhistory',value:'true');
+      setState((){
+        _searchHistoryStatus = true;
+      });
+    }
+  }
+
   void _showError(String message) {
     if (!mounted) return;
 
@@ -93,6 +126,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadProfileImage();
     _loadPinStatus();
     _loadAutoBackupStatus();
+    _loadSearchHistoryStatus();
   }
 
   @override
@@ -358,7 +392,17 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  /// Backup Status / About / Leave a review rows.
+  Widget _buildSearchHistory(){
+    return SwitchListTile(
+      secondary: const Icon(Icons.search),
+      title: const Text('Remember my Searches'),
+      subtitle: const Text('Your previous searched will be used to suggest new searches'),
+      value: _searchHistoryStatus,
+      onChanged: _toggleSearchHistoryStatus,
+    );
+  }
+
+  /// Backup Status / About / Social / Legal rows.
   Widget _buildMoreSection() {
     return Column(
       children: [
@@ -388,6 +432,44 @@ class _ProfilePageState extends State<ProfilePage> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => _openUrl(_playStoreUrl),
         ),
+
+        ListTile(
+          leading: const Icon(Icons.play_circle_outline),
+          title: const Text('YouTube'),
+          subtitle: const Text('Follow DocEzy on YouTube'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _openUrl(
+            'https://www.youtube.com/@DocEzy',
+          ),
+        ),
+
+        ListTile(
+          leading: const Icon(Icons.camera_alt_outlined),
+          title: const Text('Instagram'),
+          subtitle: const Text('Follow DocEzy on Instagram'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _openUrl(
+            'https://www.instagram.com/docezy.app/',
+          ),
+        ),
+
+        ListTile(
+          leading: const Icon(Icons.privacy_tip_outlined),
+          title: const Text('Privacy Policy'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _openUrl(
+            'https://privacy.docezy.in/',
+          ),
+        ),
+
+        ListTile(
+          leading: const Icon(Icons.description_outlined),
+          title: const Text('Terms & Conditions'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _openUrl(
+            'https://terms.docezy.in/',
+          ),
+        ),
       ],
     );
   }
@@ -409,7 +491,10 @@ class _ProfilePageState extends State<ProfilePage> {
           const Divider(height: 1),
           _buildAutoBackupSection(),
           const Divider(height: 1),
+          _buildSearchHistory(),
+          const Divider(height: 1),
           _buildMoreSection(),
+          
         ],
       ),
     );

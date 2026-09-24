@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'constants.dart';
 
 final words = [
     'aadhaar',
@@ -11,12 +12,20 @@ final words = [
     'phonepe',
     'electricity bill',
     'credit card',
-    'debit card'
+    'debit card',
+    'sbi',
+    'pnb',
+    'hdfc',
+    'icici'
 ];
 
 class SearchSuggestionService{
     late final Database db;
     Future<void> initialize() async{
+        final exists = await storage.containsKey(key: 'searchhistory');
+        if(!exists){
+            await storage.write(key:'searchhistory', value:'true');
+        }
         final databasepath=await getDatabasesPath();
         final path=join(databasepath,"searchsuggestion.db",);
         db=await openDatabase(
@@ -40,10 +49,12 @@ class SearchSuggestionService{
     }
 
     Future<void> update(String word) async{
-        await db.execute("""
-            INSERT INTO search_suggestion (word,time) VALUES (?,?) ON CONFLICT(word) DO UPDATE SET time=excluded.time""",
-            [word.toLowerCase(),DateTime.now().millisecondsSinceEpoch,]
-        );
+        if(await storage.read(key: 'searchhistory')=="true"){
+            await db.execute("""
+                INSERT INTO search_suggestion (word,time) VALUES (?,?) ON CONFLICT(word) DO UPDATE SET time=excluded.time""",
+                [word.toLowerCase(),DateTime.now().millisecondsSinceEpoch,]
+            );
+        }
     }
 
     Future<List<String>> query(String prefix) async{
@@ -70,7 +81,7 @@ class SearchSuggestionService{
             DELETE FROM search_suggestion
         """);
     }
-    
+
     Future<void> close() async {
         await db.close();
     }

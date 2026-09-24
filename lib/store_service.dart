@@ -7,6 +7,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show compute;
@@ -77,6 +78,24 @@ class StoreService {
   void dispose(){
     _latinRecognizer.close();
     _devanagariRecognizer.close();
+  }
+
+  Future<bool> containsQRCode(String imagePath) async {
+    final inputImage = InputImage.fromFilePath(imagePath);
+
+    final barcodeScanner = BarcodeScanner(
+      formats: [BarcodeFormat.qrCode],
+    );
+
+    try {
+      final barcodes = await barcodeScanner.processImage(inputImage);
+
+      return barcodes.isNotEmpty;
+    } catch (e) {
+      return false;
+    } finally {
+      await barcodeScanner.close();
+    }
   }
 
   Future<String> _extractPdfocrText(String path) async {
@@ -395,7 +414,17 @@ class StoreService {
     onLoad();
 
     try {
-      final text = isPdf ? await extractPdfText(dest) : await extractText(dest);
+      String text = isPdf ? await extractPdfText(dest) : await extractText(dest);
+      if(!isPdf){
+        if (await containsQRCode(dest)) {
+          text += " qr code scan scanner";
+        }
+      }
+      else{
+        if (await containsQRCode(dest+".thumb.jpg")) {
+          text += " qr code scan scanner";
+        }
+      }
       return _PreparedImport(dest, text);
     } catch (e) {
       onError("Couldn't import ${p.basename(filepath)}: $e");

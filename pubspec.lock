@@ -477,6 +477,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.3.3+1"
+  google_mlkit_barcode_scanning:
+    dependency: "direct main"
+    description:
+      name: google_mlkit_barcode_scanning
+      sha256: "4dcd732ea49d10d08d8dc6dbed916edd2b455290fcb1bdef686fc41b73b94f20"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.16.0"
   google_mlkit_commons:
     dependency: transitive
     description:
