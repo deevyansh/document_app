@@ -3,11 +3,6 @@ import 'package:path/path.dart';
 import 'constants.dart';
 
 final words = [
-    'aadhaar',
-    'passport',
-    'pan card',
-    'driving licence',
-    'cheque',
     'paytm',
     'phonepe',
     'electricity bill',
@@ -16,7 +11,16 @@ final words = [
     'sbi',
     'pnb',
     'hdfc',
-    'icici'
+    'icici',
+    'scanner',
+    'scan',
+    'qr code',
+    'axis',
+    'aadhaar',
+    'passport',
+    'pan card',
+    'driving licence',
+    'cheque'
 ];
 
 class SearchSuggestionService{
@@ -49,10 +53,11 @@ class SearchSuggestionService{
     }
 
     Future<void> update(String word) async{
+        final normalizedWord =word.replaceFirst(RegExp(r'\s+$'), '').toLowerCase();
         if(await storage.read(key: 'searchhistory')=="true"){
             await db.execute("""
                 INSERT INTO search_suggestion (word,time) VALUES (?,?) ON CONFLICT(word) DO UPDATE SET time=excluded.time""",
-                [word.toLowerCase(),DateTime.now().millisecondsSinceEpoch,]
+                [normalizedWord,DateTime.now().millisecondsSinceEpoch,]
             );
         }
     }

@@ -572,6 +572,18 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Widget _buildVersionSection() {
+    return Center(
+      child: Text(
+        'DocEzy • Version 1.0.0',
+        style: TextStyle(
+          fontSize: 13,
+          color: Colors.grey[500],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -598,6 +610,8 @@ class _ProfilePageState extends State<ProfilePage> {
               _buildLegalSection(),
               const SizedBox(height: 24),
               _buildAccountSection(),
+              const SizedBox(height:24),
+              _buildVersionSection(),
             ],
           ),
         ),

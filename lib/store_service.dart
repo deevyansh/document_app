@@ -330,14 +330,20 @@ class StoreService {
     onLoad();
 
     if (!isPdf) {
-      final text = await extractText(dest);
+      String text = await extractText(dest);
+      if(await containsQRCode(dest)){
+        text+=" scanner scan qr code";
+      }
       if (!await storeEmbedding(dest, text)) {
         await File(dest).delete();
         onLoad();
         return;
       }
     } else {
-      final text = await extractPdfText(dest);
+      String text = await extractPdfText(dest);
+      if(await containsQRCode(dest+".thumb.jpg")){
+        text+=" scanner scan qr code";
+      }
       if (!await storeEmbedding(dest, text)) {
         await File(dest).delete();
         onLoad();

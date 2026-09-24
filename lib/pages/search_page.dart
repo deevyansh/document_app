@@ -153,21 +153,17 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         }
     }
 
+    Future<void> _fetchSuggestions() async {
+        final results =
+            await _searchSuggestionService.query(_queryController.text);
+        if (!mounted) return;
+        setState(() => _suggestions = results);
+    }
+
     Future<void> initialize() async{
         await _searchSuggestionService.initialize();
-        _queryController.addListener(() async{
-            if(_queryController.text==""){
-                setState((){
-                    _suggestions=[];
-                });
-            }
-            else{
-                final new_suggestion= await _searchSuggestionService.query(_queryController.text);
-                setState((){
-                    _suggestions=new_suggestion;
-                });
-            }
-        });
+        _queryController.addListener(_fetchSuggestions);
+        await _fetchSuggestions();
     }
 
     @override
@@ -214,6 +210,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
 
     @override
     void dispose(){
+        _queryController.removeListener(_fetchSuggestions);
         _enToHi.close();
         _hiToEn.close();
         _queryController.dispose();
@@ -408,6 +405,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
 
         if (spokenText != null && spokenText.trim().isNotEmpty) {
             _queryController.text = spokenText;
+            _queryFocusNode.unfocus();
             await _queryDocument();
         }
         } on PlatformException catch (e) {
@@ -657,36 +655,62 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         }
     }
 
-    Widget searchSuggestionWidget(){
-        return ListView.builder(
-            shrinkWrap: true,
-            itemCount: _suggestions.length,
-            itemBuilder: (context, index) {
+    Widget searchSuggestionWidget() {
+        return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+            // Header between search bar and suggestions
+            const Padding(
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Text(
+                'Recent searches',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600
+                ),
+                ),
+            ),
+
+            // Suggestions list
+            ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _suggestions.length,
+                itemBuilder: (context, index) {
                 final query = _queryController.text;
-                final prefix = _suggestions[index].substring(0, query.length);
-                final remaining = _suggestions[index].substring(query.length);
+                final suggestion = _suggestions[index];
+                final prefixLength = query.length.clamp(0, suggestion.length);
+                final prefix = suggestion.substring(0, prefixLength);
+                final remaining = suggestion.substring(prefixLength);
+
                 return ListTile(
-                    leading: Icon(Icons.history),
+                    leading: const Icon(Icons.history),
                     title: RichText(
-                        text: TextSpan(
-                            children: [
-                            TextSpan(
-                                text: prefix,
-                                style: TextStyle(color: Colors.grey[600], fontSize: 18),
-                            ),
-                            TextSpan(
-                                text: remaining,
-                                style: TextStyle(color: Colors.black, fontSize: 18),
-                            ),
-                            ],
+                    text: TextSpan(
+                        children: [
+                        TextSpan(
+                            text: prefix,
+                            style: TextStyle(color: Colors.grey[600], fontSize: 18),
                         ),
+                        TextSpan(
+                            text: remaining,
+                            style: const TextStyle(color: Colors.black, fontSize: 18), // kept original black
+                        ),
+                        ],
                     ),
-                    onTap:(){_suggestionTap(_suggestions[index]);},
-                    onLongPress: (){
-                        _deleteSuggestion(_suggestions[index]);
-                    }
+                    ),
+                    trailing: Icon(
+                    Icons.north_west, // the arrow from your screenshot (design only)
+                    size: 18,
+                    color: Colors.grey[600],
+                    ),
+                    onTap: () => _suggestionTap(suggestion),
+                    onLongPress: () => _deleteSuggestion(suggestion),
                 );
-            },
+                },
+            ),
+            ],
         );
     }
 

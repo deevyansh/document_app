@@ -144,6 +144,7 @@ class MyHomePageState extends State<MyHomePage> {
   final ScrollController _gridController = ScrollController();
   bool _googleLoading = false;
   late final TapGestureRecognizer _privacyPolicyRecognizer;
+  late final TapGestureRecognizer _termsRecognizer;
   bool _pinUnlockedThisSession = false;
 
   // True from first build until we've figured out (from secure storage)
@@ -524,6 +525,19 @@ class MyHomePageState extends State<MyHomePage> {
           }
         }
       };
+    _termsRecognizer = TapGestureRecognizer()
+      ..onTap = () async {
+        final uri = Uri.parse('https://terms.docezy.in/');
+        try {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not open the privacy policy link.')),
+            );
+          }
+        }
+      };
     _initialize();
 
   }
@@ -567,17 +581,30 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _handleShared(List<SharedMediaFile> files) async {
+    if (files.isEmpty) return;
+
     setState(() {
       _importtotal = files.length;
       _importdone = 0;
     });
 
-    for (final f in files) {
-      await _storeService.importFromPath(f.path);
-      setState(() {
-        _importdone++;
-      });
+    final paths = files.map((f) => f.path).toList();
+
+    // Real work runs in the background
+    final importFuture = _storeService.importMultipleFiles(paths);
+
+    // Fake progress: 1 second per file for all but the last
+    for (var i = 0; i < files.length - 1; i++) {
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
+      setState(() => _importdone = i + 1);
     }
+
+    // Wait for the actual import, then mark the last file done
+    await importFuture;
+    if (!mounted) return;
+    setState(() => _importdone = files.length);
+
     await _load();
 
     if (_openedFromShare) {
@@ -671,6 +698,7 @@ class MyHomePageState extends State<MyHomePage> {
     _emailController.dispose();
     _intentSub?.cancel();
     _privacyPolicyRecognizer.dispose();
+    _termsRecognizer.dispose();
     super.dispose();
   }
 
@@ -1263,6 +1291,16 @@ class MyHomePageState extends State<MyHomePage> {
                         decoration: TextDecoration.underline,
                       ),
                       recognizer: _privacyPolicyRecognizer,
+                    ),
+                    const TextSpan(text: ' , '),
+                    TextSpan(
+                      text: 'DocEzy Terms and Conditions',
+                      style: const TextStyle(
+                        color: Color(0xFF1565C0),
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                      ),
+                      recognizer: _termsRecognizer,
                     ),
                     const TextSpan(text: '.'),
                   ],
