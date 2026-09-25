@@ -112,6 +112,7 @@ class MyHomePageState extends State<MyHomePage> {
   final PageController _sliderController = PageController();
   Timer? _sliderTimer;
   int _currentSlide = 0;
+  bool _readMarkerShow=false;
   final List<String> _sliderImages = [
     'assets/slides/slide1.png',
     'assets/slides/slide2.png',
@@ -682,6 +683,21 @@ class MyHomePageState extends State<MyHomePage> {
     unawaited(_checkForUpdate());
 
     _appAlreadyRunning = true;
+
+    // check for the notification
+    if(await storage.containsKey(key: "token")){
+      final token=await storage.read(key: "token");
+      final result = await _safePost(
+        "/check-notification",
+        {},
+        extraHeaders: {'Authorization': 'Bearer $token'},
+      );
+      if (!mounted || result == null) return;
+      final data = jsonDecode(result.body);
+      setState(() {
+        _readMarkerShow = data["read"] == false;
+      });
+    }
   }
 
   @override
@@ -2008,17 +2024,53 @@ class MyHomePageState extends State<MyHomePage> {
           },
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, size: 24),
-            tooltip: "Annoucements",
-            onPressed: () async{
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_)=> const NotificationPage()),
-              );
-            },
-          ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.notifications_none,
+                  size: 24,
+                ),
+                tooltip: "Announcements",
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationPage(),
+                    ),
+                  );
 
+                  setState(() {
+                    _readMarkerShow = false;
+                  });
+                },
+              ),
+
+              if (_readMarkerShow)
+                Positioned(
+                  right: 5,
+                  top: 4,
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      "1",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.favorite, size: 24, color: Colors.red),
             tooltip: "Open Your Favourites",
