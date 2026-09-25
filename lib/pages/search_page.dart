@@ -36,7 +36,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
     bool _isSelectedMode = false;
     Set<int> _selectedIndexes = {};
     bool _islistening = false;
-    String _querytext = "What are you looking for";
+    String _querytext = "Search or Ask";
     List<File> _queryphotos = [];
     List<File> _querylimitphotos=[];
     int _focusAttempts = 0;
@@ -392,6 +392,11 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         });
     }
 
+    Future<void> _startNewSearch() async {
+        _typefilter = DocumentTypeFilter.all;
+        await _queryDocument();
+    }
+
     Future<void> _startListening() async {
         setState(() {
         _querytext = "Listening..";
@@ -406,14 +411,14 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         if (spokenText != null && spokenText.trim().isNotEmpty) {
             _queryController.text = spokenText;
             _queryFocusNode.unfocus();
-            await _queryDocument();
+            await _startNewSearch();
         }
         } on PlatformException catch (e) {
         _showError("Voice search unavailable: ${e.message}");
         } finally {
         if (mounted) {
             setState(() {
-            _querytext = "What are you looking for";
+            _querytext = "Search or Ask";
             _islistening = false;
             });
         }
@@ -612,7 +617,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
     void _suggestionTap (String word){
         _queryController.text=word;
         _queryFocusNode.unfocus();
-        _queryDocument();
+        _startNewSearch();
     }
 
 
@@ -714,6 +719,60 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         );
     }
 
+    /// Deliberately
+    /// calls `_queryDocument()` directly (not `_startNewSearch()`), so
+    /// switching the filter never resets itself back to "Any" mid-tap.
+    Widget filterWidget() {
+        Widget chip(DocumentTypeFilter type, String label, IconData icon) {
+            final selected = _typefilter == type;
+            final primary = Theme.of(context).colorScheme.primary;
+
+            return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                    selected: selected,
+                    onSelected: (_) {
+                        if (_typefilter == type) return;
+                        setState(() => _typefilter = type);
+                        _queryDocument();
+                    },
+                    avatar: Icon(
+                        icon,
+                        size: 16,
+                        color: selected ? Colors.white : Colors.grey.shade700,
+                    ),
+                    label: Text(label),
+                    labelStyle: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: selected ? Colors.white : Colors.black87,
+                    ),
+                    selectedColor: primary,
+                    backgroundColor: Colors.grey.shade100,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(
+                            color: selected ? Colors.transparent : Colors.grey.shade300,
+                        ),
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                ),
+            );
+        }
+
+        return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Row(
+                children: [
+                    chip(DocumentTypeFilter.all, "Any", Icons.apps_rounded),
+                    chip(DocumentTypeFilter.pdf, "PDF", Icons.picture_as_pdf_rounded),
+                    chip(DocumentTypeFilter.image, "Image", Icons.image_rounded),
+                ],
+            ),
+        );
+    }
+
     @override
     Widget build(BuildContext context) {
         return Scaffold(
@@ -733,9 +792,6 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
                 children: [
                 Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                    children: [
-                    Expanded(
                     child: TextField(
                         controller: _queryController,
                         focusNode: _queryFocusNode,
@@ -745,73 +801,21 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                         ),
-                        suffixIcon: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                            IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () => _queryController.clear(),
+                        suffixIcon: IconButton(
+                            icon: Icon(
+                            _islistening ? Icons.stop_circle : Icons.mic,
                             ),
-                            IconButton(
-                                icon: Icon(
-                                _islistening ? Icons.stop_circle : Icons.mic,
-                                ),
-                                tooltip: 'Speak',
-                                onPressed: _pressmicbutton,
-                            ),
-                            ],
+                            tooltip: 'Speak',
+                            onPressed: _pressmicbutton,
                         ),
                         ),
-                        onSubmitted: (_) => _queryDocument(),
+                        onSubmitted: (_) => _startNewSearch(),
                     ),
-                    ),
-                    Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                        IconButton(
-                        icon: const Icon(Icons.tune_rounded),
-                        onPressed: () async {
-                            final res = await _filterSelection();
-
-                            if (res != null) {
-                            setState(() {
-                                _typefilter = res;
-                            });
-
-                            await _queryDocument();
-                            }
-                        },
-                        ),
-
-                        if (_typefilter != DocumentTypeFilter.all)
-                        Positioned(
-                            right: 8,
-                            top: 8,
-                            child: Container(
-                            width: 18,
-                            height: 18,
-                            decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: const Text(
-                                "1",
-                                style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                ),
-                            ),
-                            ),
-                        ),
-                    ],
-                    ),
-                ],
                 ),
-            ),
             if (_suggestions.isNotEmpty && !_isSearching && _queryFocusNode.hasFocus)
                 searchSuggestionWidget(),
+            if (_hasSearched && !_isSearching && !_queryFocusNode.hasFocus)
+                filterWidget(),
             Expanded(
                 child: _isSearching
                     ? const Center(child: CircularProgressIndicator())
@@ -899,77 +903,6 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
             ],
         ),
         ),
-        );
-    }
-
-    Future<DocumentTypeFilter?> _filterSelection() async {
-        DocumentTypeFilter selected = _typefilter;
-
-        return await showDialog<DocumentTypeFilter>(
-        context: context,
-        builder: (context) {
-            return StatefulBuilder(
-            builder: (context, setDialogState) {
-                return AlertDialog(
-                title: const Text("Filter Documents"),
-
-                content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                    RadioListTile<DocumentTypeFilter>(
-                        title: const Text("All"),
-                        value: DocumentTypeFilter.all,
-                        groupValue: selected,
-                        onChanged: (value) {
-                        setDialogState(() {
-                            selected = value!;
-                        });
-                        },
-                    ),
-
-                    RadioListTile<DocumentTypeFilter>(
-                        title: const Text("Images"),
-                        value: DocumentTypeFilter.image,
-                        groupValue: selected,
-                        onChanged: (value) {
-                        setDialogState(() {
-                            selected = value!;
-                        });
-                        },
-                    ),
-
-                    RadioListTile<DocumentTypeFilter>(
-                        title: const Text("PDFs"),
-                        value: DocumentTypeFilter.pdf,
-                        groupValue: selected,
-                        onChanged: (value) {
-                        setDialogState(() {
-                            selected = value!;
-                        });
-                        },
-                    ),
-                    ],
-                ),
-
-                actions: [
-                    TextButton(
-                    onPressed: () {
-                        Navigator.pop(context);
-                    },
-                    child: const Text("Cancel"),
-                    ),
-
-                    ElevatedButton(
-                    onPressed: () {
-                        Navigator.pop(context, selected);
-                    },
-                    child: const Text("Apply"),
-                    ),
-                ],
-                );
-            },
-            );
-        },
         );
     }
 }

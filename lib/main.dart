@@ -46,6 +46,7 @@ import 'pin_service.dart';
 import 'pages/pin_lock_page.dart';
 import 'pages/pin_setup_page.dart';
 import 'pages/backup_status_page.dart';
+import 'pages/notification_page.dart';
 import 'store_service.dart';
 import 'merge_service.dart';
 import 'backup_service.dart';
@@ -2007,6 +2008,17 @@ class MyHomePageState extends State<MyHomePage> {
           },
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none, size: 24),
+            tooltip: "Annoucements",
+            onPressed: () async{
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_)=> const NotificationPage()),
+              );
+            },
+          ),
+
           IconButton(
             icon: const Icon(Icons.favorite, size: 24, color: Colors.red),
             tooltip: "Open Your Favourites",
