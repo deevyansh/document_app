@@ -147,7 +147,7 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token',
             },
-            body: jsonEncode({'doc_path': file}),
+            body: jsonEncode({'doc_path': dbPath(file)}),
         );
         await BackupService.markDeleted(file);
         }
@@ -298,15 +298,17 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
     }
 
     Future<void> _loadqueryphotos(List<dynamic> results) async {
-        final files = results
-            .map((r) => File(r['doc_path'] as String))
-            .where((f) => f.existsSync())
-            .toList();
+        final seen = <String>{};
+        final files = <File>[];
+        for (final r in results) {
+            final f = await localDoc(r['doc_path'] as String);
+            if (f.existsSync() && seen.add(f.path)) files.add(f);
+        }
         if (!mounted) return;
-        setState((){
-            _queryphotos = files.toList();
-            _querylimitphotos=files.take(5).toList();
-        }); // Limit to max 5
+        setState(() {
+            _queryphotos = files;
+            _querylimitphotos = files.take(5).toList();
+        });
     }
 
     Future<String?> _transliterate(String text) async {
@@ -719,7 +721,10 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         );
     }
 
-    /// Deliberately
+    /// Quick type filter shown under the search bar once a search has run
+    /// (see the `_hasSearched` guard in build() below). Any/PDF/Image is a
+    /// single-select — tapping one re-runs the current query with that
+    /// type_filter, rather than reopening a separate dialog. Deliberately
     /// calls `_queryDocument()` directly (not `_startNewSearch()`), so
     /// switching the filter never resets itself back to "Any" mid-tap.
     Widget filterWidget() {

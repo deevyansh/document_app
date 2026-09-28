@@ -601,7 +601,8 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               _buildProfileHeader(),
               const SizedBox(height: 28),
-              _buildWidgetPromo(),
+              if(Platform.isAndroid)
+                _buildWidgetPromo(),
               const SizedBox(height: 24),
               _buildFeaturesSection(),
               const SizedBox(height: 24),

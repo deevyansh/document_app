@@ -339,7 +339,7 @@ class BackupService {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token',
           },
-          body: jsonEncode({'doc_path': docPath}),
+          body: jsonEncode({'doc_path': dbPath(docPath)}),
         )
         .then((res) {
           debugPrint(
@@ -434,7 +434,7 @@ class BackupService {
                 'Authorization': 'Bearer $token',
               },
               body: jsonEncode({
-                'doc_path': docPath,
+                'doc_path': dbPath(docPath),
                 'content_type': contentType,
                 'size': bytes.length,
                 'file_key': fileKeyB64,
@@ -946,21 +946,40 @@ class BackupService {
   /// this device stops being "owned" by this account.
   static Future<void> clearLocalAccountData() async {
     try {
+      // Close and forget the cached DB first
+      try {
+        await _database?.close();
+      } catch (_) {}
+      _database = null;
+
       final dir = await getApplicationDocumentsDirectory();
+      final numeric = RegExp(r'^\d+$');
+
       for (final entry in dir.listSync().whereType<File>()) {
+        final name = p.basename(entry.path);
+
+        // Never touch sqflite files (they live in Documents on iOS)
+        if (name.endsWith('.db') ||
+            name.endsWith('.db-journal') ||
+            name.endsWith('.db-wal') ||
+            name.endsWith('.db-shm')) {
+          continue;
+        }
+
+        final isProfile = name.startsWith('profile_');
+        final isThumb = name.endsWith('.thumb.jpg');
+        final isDoc = numeric.hasMatch(p.basenameWithoutExtension(name));
+        if (!(isProfile || isThumb || isDoc)) continue;
+
         try {
           await entry.delete();
         } catch (e) {
-          debugPrint(
-            'BackupService: failed to delete ${entry.path} on logout: $e',
-          );
+          debugPrint('BackupService: failed to delete ${entry.path}: $e');
         }
       }
-      final db = await _db();
+
+      final db = await _db(); // reopens cleanly
       await db.delete('backup_queue');
-      debugPrint(
-        'BackupService: cleared local documents + backup queue on logout',
-      );
     } catch (e) {
       debugPrint('BackupService: clearLocalAccountData failed: $e');
     }

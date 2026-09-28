@@ -48,7 +48,7 @@ class _NotesPageState extends State<NotesPage> {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
       },
-      body: jsonEncode({"doc_path": file.path, "text": plainText}),
+      body: jsonEncode({"doc_path": dbPath(file.path), "text": plainText}),
     );
     await BackupService.registerPendingBackup(file.path);
   }

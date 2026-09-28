@@ -67,10 +67,12 @@ class _FavouritesPageState extends State<FavouritesPage> {
       final data = jsonDecode(res.body);
 
       // backend returns [{"doc_path": "..."}]; keep only files still on device
-      final files = (data["results"] as List)
-          .map((r) => File(r["doc_path"] as String))
-          .where((f) => f.existsSync())
-          .toList();
+      final seen = <String>{};
+      final files = <File>[];
+      for (final r in (data["results"] as List)) {
+        final f = await localDoc(r["doc_path"] as String);
+        if (f.existsSync() && seen.add(f.path)) files.add(f);
+      }
 
       if (!mounted) return;
       setState(() {

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Document App</string>
+	<string>DocEzy</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>document_app</string>
+	<string>DocEzy</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -53,6 +53,14 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>NSCameraUsageDescription</key>
+	<string>DocEzy uses the camera to scan your documents.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>DocEzy uses the microphone to convert your voice into search text.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>DocEzy uses speech recognition to let you search for documents using your voice.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>DocEzy uses the photo library to import document you want</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

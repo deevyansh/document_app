@@ -106,27 +106,53 @@ class _BrowserPageState extends State<BrowserPage> {
   }
 
   Future<void> _load() async {
-    final dir = await getApplicationDocumentsDirectory();
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final numericName = RegExp(r'^\d+$');
 
-    final files = dir.listSync().whereType<File>().where((f) {
-      final name = p.basename(f.path);
-      if (name.startsWith('profile_')) return false;
-      if (name.endsWith('.pdf')) return true;
-      if (name.endsWith('profile.jpg')) return false;
-      if (name.endsWith('.thumb.jpg')) return false;
-      if (name.endsWith('.json')) return true;
-      return name.endsWith('.jpg') || name.endsWith('.png');
-    }).toList();
+      final files = dir.listSync().whereType<File>().where((f) {
+        final name = p.basename(f.path);
 
-    files.sort((a, b) {
-      final aTime = int.parse(p.basenameWithoutExtension(a.path));
-      final bTime = int.parse(p.basenameWithoutExtension(b.path));
-      return bTime.compareTo(aTime);
-    });
-    setState(() {
-      _photos = files;
-      _loading = false;
-    });
+        if (name.startsWith('profile_')) return false;
+        if (name.endsWith('profile.jpg')) return false;
+        if (name.endsWith('.thumb.jpg')) return false;
+
+        final stem = p.basenameWithoutExtension(f.path);
+
+        // Only documents whose filename is a timestamp.
+        if (!numericName.hasMatch(stem)) return false;
+
+        return name.endsWith('.pdf') ||
+            name.endsWith('.json') ||
+            name.endsWith('.jpg') ||
+            name.endsWith('.png');
+      }).toList();
+
+      files.sort((a, b) {
+        final aTime = int.parse(p.basenameWithoutExtension(a.path));
+        final bTime = int.parse(p.basenameWithoutExtension(b.path));
+        return bTime.compareTo(aTime);
+      });
+
+      if (!mounted) return;
+
+      setState(() {
+        _photos = files;
+        _loading = false;
+      });
+    } catch (e, stackTrace) {
+      debugPrint('Browser _load error: $e');
+      debugPrint('$stackTrace');
+
+      if (!mounted) return;
+
+      setState(() {
+        _photos = [];
+        _loading = false;
+      });
+
+      _showError("Unable to load documents.");
+    }
   }
 
   void _handleTap(int i) async {
@@ -174,7 +200,7 @@ class _BrowserPageState extends State<BrowserPage> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'doc_path': file}),
+        body: jsonEncode({'doc_path': dbPath(file)}),
       );
       await BackupService.markDeleted(file);
     }

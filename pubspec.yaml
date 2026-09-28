@@ -64,6 +64,7 @@ dependencies:
   sqflite: ^2.2.8+4
   cryptography: ^2.7.0
   google_mlkit_barcode_scanning: ^0.16.0
+  scanner_document: ^1.1.1
 
 dev_dependencies:
   flutter_test:

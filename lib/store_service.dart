@@ -223,7 +223,7 @@ class StoreService {
     if (token == null) return false;
     final res = await _safePost(
       "/send-document",
-      {'doc_path': dest, 'text': text},
+      {'doc_path': dbPath(dest), 'text': text},
       extraHeaders: {'Authorization': 'Bearer $token'},
     );
     if (res == null) {
@@ -495,7 +495,7 @@ class StoreService {
       "/send-documents-batch",
       {
         'documents': items
-            .map((item) => {'doc_path': item.destPath, 'text': item.text})
+            .map((item) => {'doc_path': dbPath(item.destPath), 'text': item.text})
             .toList(),
       },
       extraHeaders: {'Authorization': 'Bearer $token'},

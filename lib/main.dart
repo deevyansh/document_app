@@ -1,6 +1,7 @@
 import 'package:document_app/pages/notes_page.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -16,6 +17,7 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:document_app/main.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
+import 'package:scanner_document/scanner_document.dart';
 
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 import 'package:flutter/material.dart';
@@ -927,11 +929,43 @@ class MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+
   Future<void> _scanImages() async {
     if (!await _hasInternet()) {
       _showError("No internet connection.");
       return;
     }
+
+    if (Platform.isAndroid) {
+      await _scanAndroid();
+    } else if (Platform.isIOS) {
+      await _scanIOS();
+    }
+  }
+
+  Future<void> _scanIOS() async {
+    try {
+      final images = await ScannerDocument.getPictures(
+        iosScannerOptions: IosScannerOptions(
+          imageFormat: IosImageFormat.jpg,
+          jpgCompressionQuality: 0.8,
+        ),
+      );
+
+      if (images == null || images.isEmpty) {
+        return;
+      }
+
+      await _storeService.importMultipleFiles(images);
+    } catch (e) {
+      debugPrint("iOS document scanner error: $e");
+      _showError("Unable to scan document.");
+    }
+  }
+
+
+
+  Future<void> _scanAndroid() async {
     final scanner = DocumentScanner(
       options: DocumentScannerOptions(
         documentFormats: const {DocumentFormat.jpeg},
@@ -944,9 +978,84 @@ class MyHomePageState extends State<MyHomePage> {
     final images = result.images;
     await scanner.close();
     if (images == null || images.isEmpty) return;
-
-    // each page becomes its own document
     await _storeService.importMultipleFiles(images);
+  }
+
+  /// Scans up to [pageLimit] pages and returns their raw image file
+  /// paths — used by _scanPdf()/_scanIdCard(), which need the raw pages
+  /// to build a single PDF from (via buildPdfFromImages/buildIdCardPdf in
+  /// merge_service.dart), unlike _scanImages() above which imports each
+  /// scanned page as its own separate image document.
+  ///
+  /// Android's `DocumentScanner` (Google ML Kit's GmsDocumentScanning) has
+  /// a native "scan another page" loop built into its own camera UI, so a
+  /// single call here already returns every page up to [pageLimit].
+  ///
+  /// iOS is different: `scanner_document`'s iOS side wraps the WeScan
+  /// library, not VisionKit's native multi-page document camera — WeScan
+  /// captures exactly ONE page per camera session and returns immediately.
+  /// There is no plugin-level way to keep the same camera session open for
+  /// more pages on iOS. So for [pageLimit] > 1 (the PDF flow), this loops
+  /// the single-page scan itself and asks the user after each page
+  /// whether to add another, up to [pageLimit] — this is what actually
+  /// makes multi-page PDFs possible on iPhone. For [pageLimit] == 1 (the
+  /// ID card flow's front/back calls), it just does one scan with no
+  /// prompt, unchanged from before.
+  Future<List<String>?> _scanPagesForPdf({required int pageLimit}) async {
+    if (Platform.isAndroid) {
+      final scanner = DocumentScanner(
+        options: DocumentScannerOptions(
+          documentFormats: const {DocumentFormat.jpeg},
+          mode: ScannerMode.base,
+          pageLimit: pageLimit,
+          isGalleryImport: true,
+        ),
+      );
+      try {
+        final result = await scanner.scanDocument();
+        return result.images;
+      } finally {
+        await scanner.close();
+      }
+    } else if (Platform.isIOS) {
+      final pages = <String>[];
+      try {
+        while (pages.length < pageLimit) {
+          final scanned = await ScannerDocument.getPictures(
+            iosScannerOptions: IosScannerOptions(
+              imageFormat: IosImageFormat.jpg,
+              jpgCompressionQuality: 0.8,
+            ),
+          );
+
+          if (scanned == null || scanned.isEmpty) {
+            // User backed out of this particular scan attempt — stop
+            // here and keep whatever pages were already captured, rather
+            // than throwing away a scan the user already completed.
+            break;
+          }
+          pages.addAll(scanned);
+
+          if (pages.length >= pageLimit) break;
+          if (pageLimit <= 1) break; // single-page callers never prompt
+
+          if (!mounted) break;
+          final wantsMore = await _confirmScanAnotherPage();
+          if (!wantsMore) break;
+        }
+      } catch (e) {
+        debugPrint("iOS document scanner error: $e");
+        if (pages.isEmpty) {
+          _showError("Unable to scan document.");
+          return null;
+        }
+        // A later page in the loop failed, but at least one page was
+        // already captured successfully — use what we have instead of
+        // discarding the whole scan over the last attempt.
+      }
+      return pages.isEmpty ? null : pages;
+    }
+    return null;
   }
 
   Future<void> _scanPdf() async {
@@ -954,17 +1063,8 @@ class MyHomePageState extends State<MyHomePage> {
       _showError("No internet connection.");
       return;
     }
-    final scanner = DocumentScanner(
-      options: DocumentScannerOptions(
-        documentFormats: const {DocumentFormat.jpeg},
-        mode: ScannerMode.base,
-        pageLimit: 10,
-        isGalleryImport: true,
-      ),
-    );
-    final result = await scanner.scanDocument();
-    final images = result.images;
-    await scanner.close();
+
+    final images = await _scanPagesForPdf(pageLimit: 10);
     if (images == null || images.isEmpty) return;
 
     final dir = await getApplicationDocumentsDirectory();
@@ -984,17 +1084,7 @@ class MyHomePageState extends State<MyHomePage> {
     }
 
     // ── Front ──
-    final frontScanner = DocumentScanner(
-      options: DocumentScannerOptions(
-        documentFormats: const {DocumentFormat.jpeg},
-        mode: ScannerMode.base,
-        pageLimit: 1,
-        isGalleryImport: true,
-      ),
-    );
-    final frontResult = await frontScanner.scanDocument();
-    await frontScanner.close();
-    final frontImages = frontResult.images;
+    final frontImages = await _scanPagesForPdf(pageLimit: 1);
     if (frontImages == null || frontImages.isEmpty) return;
     final frontPath = frontImages.first;
 
@@ -1002,17 +1092,7 @@ class MyHomePageState extends State<MyHomePage> {
     final wantsBack = await _confirmScanBack();
     String? backPath;
     if (wantsBack) {
-      final backScanner = DocumentScanner(
-        options: DocumentScannerOptions(
-          documentFormats: const {DocumentFormat.jpeg},
-          mode: ScannerMode.base,
-          pageLimit: 1,
-          isGalleryImport: true,
-        ),
-      );
-      final backResult = await backScanner.scanDocument();
-      await backScanner.close();
-      final backImages = backResult.images;
+      final backImages = await _scanPagesForPdf(pageLimit: 1);
       if (backImages != null && backImages.isNotEmpty) {
         backPath = backImages.first;
       }
@@ -1049,14 +1129,52 @@ class MyHomePageState extends State<MyHomePage> {
     return result ?? false;
   }
 
+  /// iOS-only prompt shown between pages while building a multi-page PDF
+  /// (see _scanPagesForPdf above) — WeScan has no native "keep scanning"
+  /// loop, so this is what stands in for it.
+  Future<bool> _confirmScanAnotherPage() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Add another page?"),
+        content: const Text(
+          "Scan another page for this PDF, or finish with what you have?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Done"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Scan another"),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
 
   void _pinunlocked() async{
     setState((){
       appstage=AppStage.document;
     });
-    final String? action = await methodChannel.invokeMethod<String>(
-      "getLaunchAction",
-    );
+
+    // getLaunchAction only ever resolves on Android today (see the iOS
+    // AppDelegate's `document_app/widget` handler, which returns nil for
+    // it deliberately). Guarding this with try/catch keeps that platform
+    // gap from ever becoming an uncaught MissingPluginException here —
+    // _pinunlocked() runs on every login/unlock, so an unhandled failure
+    // here would otherwise silently stop the widget quick-launch dispatch
+    // below from ever running, with no visible symptom.
+    String? action;
+    try {
+      action = await methodChannel.invokeMethod<String>("getLaunchAction");
+    } catch (e) {
+      debugPrint("getLaunchAction failed: $e");
+    }
 
     if (action == "search") {
       Navigator.of(context).popUntil((route) => route.isFirst);
@@ -1634,7 +1752,7 @@ class MyHomePageState extends State<MyHomePage> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'doc_path': file}),
+        body: jsonEncode({'doc_path': dbPath(file)}),
       );
       await BackupService.markDeleted(file);
     }
@@ -1931,66 +2049,83 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildPromoSlider() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: MediaQuery.of(context).size.width * 0.93,
-          height: MediaQuery.of(context).size.width * 0.93,
-          child: PageView.builder(
-            controller: _sliderController,
-            itemCount: _sliderImages.length,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final screenHeight = MediaQuery.of(context).size.height;
 
-            onPageChanged: (index) {
-              setState(() {
-                _currentSlide = index;
-              });
-            },
+        // Square-ish slide, sized off the available width like before —
+        // BUT also capped against the screen height. Previously this was
+        // `availableWidth * 0.93` used as BOTH width and height, so on a
+        // shorter phone (or once the search bar + recent row above it
+        // were also on screen) the slide's own height had no relationship
+        // to how much vertical space was actually left. Since the body
+        // Column wasn't scrollable, that pushed the slide + dots down
+        // until they visually ran into/behind the bottom nav bar. Capping
+        // against screen height (and making the body scrollable in
+        // _buildDocument, as a second line of defense) fixes that.
+        final size = math.min(availableWidth * 0.93, screenHeight * 0.38);
 
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    _sliderImages[index],
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: size,
+              height: size,
+              child: PageView.builder(
+                controller: _sliderController,
+                itemCount: _sliderImages.length,
 
-        const SizedBox(height: 8),
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentSlide = index;
+                  });
+                },
 
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            _sliderImages.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.asset(
+                        _sliderImages[index],
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _sliderImages.length,
                 (index) {
-              final isActive = index == _currentSlide;
+                  final isActive = index == _currentSlide;
 
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: isActive ? 20 : 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? Colors.blue
-                      : Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              );
-            },
-          ),
-        ),
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: isActive ? 20 : 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? Colors.blue
+                          : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  );
+                },
+              ),
+            ),
 
-        const SizedBox(height: 8),
-      ],
+            const SizedBox(height: 8),
+          ],
+        );
+      },
     );
   }
 
@@ -2097,18 +2232,24 @@ class MyHomePageState extends State<MyHomePage> {
         ],
       ),
 
+      // Wrapped in SingleChildScrollView: the promo slider's height is
+      // capped now (see _buildPromoSlider), but this is the actual
+      // guarantee against the "collides with the bottom buttons" overflow
+      // — on any screen size where the search bar + recent row + slider
+      // still don't all fit above the bottom nav bar, this scrolls
+      // instead of overflowing/clipping into it.
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_photos.isNotEmpty) _buildSearchBar(),
-            if (_photos.isNotEmpty) _buildRecentRow(),
-            const SizedBox(height: 35),
-            _buildPromoSlider(),
-            Expanded(
-              child:const SizedBox.shrink(),
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_photos.isNotEmpty) _buildSearchBar(),
+              if (_photos.isNotEmpty) _buildRecentRow(),
+              const SizedBox(height: 35),
+              _buildPromoSlider(),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
 

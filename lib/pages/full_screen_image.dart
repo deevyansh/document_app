@@ -10,6 +10,7 @@ import 'pdf_page.dart';
 import 'note_read_page.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import '../backup_service.dart';
+import 'package:path/path.dart' as p;
 
 class FullScreenImage extends StatefulWidget {
   final List<File> files;
@@ -52,7 +53,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
 
     setState(() {
       _favfiles = {
-        for (final row in data["results"]) row["doc_path"] as String,
+        for (final row in data["results"]) p.basename(row["doc_path"] as String),
       };
     });
   }
@@ -107,14 +108,11 @@ class _FullScreenImageState extends State<FullScreenImage> {
     if (token == null) return;
     final file = widget.files[_currentindex];
 
-    if (_favfiles.contains(file.path)) {
-      setState(() {
-        _favfiles.remove(file.path);
-      });
+    final name = p.basename(file.path);
+    if (_favfiles.contains(name)) {
+      setState(() => _favfiles.remove(name));
     } else {
-      setState(() {
-        _favfiles.add(file.path);
-      });
+      setState(() => _favfiles.add(name));
     }
     http.post(
       Uri.parse('$baseUrl/rev-favourites'),
@@ -122,7 +120,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({'doc_path': file.path}),
+      body: jsonEncode({'doc_path': dbPath(file.path)}),
     );
   }
 
@@ -143,7 +141,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({'doc_path': file.path}),
+      body: jsonEncode({'doc_path': dbPath(file.path)}),
     );
   }
 
@@ -183,7 +181,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({'doc_path': widget.files[_currentindex].path}),
+      body: jsonEncode({'doc_path': dbPath(widget.files[_currentindex].path)}),
     );
 
     if (response.statusCode == 200) {
@@ -247,7 +245,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
         },
         body: jsonEncode({
           'context': _contextcontroller.text,
-          'doc_path': widget.files[_currentindex].path,
+          'doc_path': dbPath(widget.files[_currentindex].path),
         }),
       );
       await BackupService.markDeleted(widget.files[_currentindex].path);
@@ -428,7 +426,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          (_favfiles.contains(widget.files[_currentindex].path))
+                          (_favfiles.contains(p.basename(widget.files[_currentindex].path)))
                               ? const Icon(
                                   Icons.favorite,
                                   size: 24,
