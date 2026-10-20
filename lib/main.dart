@@ -969,8 +969,8 @@ class MyHomePageState extends State<MyHomePage> {
     final scanner = DocumentScanner(
       options: DocumentScannerOptions(
         documentFormats: const {DocumentFormat.jpeg},
-        mode: ScannerMode.base,
-        pageLimit: 10,
+        mode: ScannerMode.filter,
+        pageLimit: 500,
         isGalleryImport: true,
       ),
     );
@@ -1006,7 +1006,7 @@ class MyHomePageState extends State<MyHomePage> {
       final scanner = DocumentScanner(
         options: DocumentScannerOptions(
           documentFormats: const {DocumentFormat.jpeg},
-          mode: ScannerMode.base,
+          mode: ScannerMode.filter,
           pageLimit: pageLimit,
           isGalleryImport: true,
         ),
@@ -1064,12 +1064,12 @@ class MyHomePageState extends State<MyHomePage> {
       return;
     }
 
-    final images = await _scanPagesForPdf(pageLimit: 10);
+    final images = await _scanPagesForPdf(pageLimit: 500);
     if (images == null || images.isEmpty) return;
 
     final dir = await getApplicationDocumentsDirectory();
     final dest = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}.pdf');
-    await buildPdfFromImages(images, dest);   // your existing function, unchanged
+    await buildPdfFromImages(images, dest);
     await _storeService.makePdfThumb(dest);
     await _load();
     final text = await _storeService.extractPdfText(dest);

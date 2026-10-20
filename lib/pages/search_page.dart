@@ -482,21 +482,9 @@ class _SearchPageState extends State<SearchPage> with WidgetsBindingObserver {
         ),
         title: Text("${_selectedIndexes.length} selected"),
         actions: [
-             FilledButton.icon(
+             IconButton(
                 icon: const Icon(Icons.merge_type),
-                label: const Text(
-                    "Merge as PDF",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 5,
-                    ),
-                  ),
+                tooltip: 'Merge as PDF',
                 onPressed: _handleMergeAsPdf,
             ),
             IconButton(

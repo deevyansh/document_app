@@ -38,7 +38,8 @@ import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 
     for (final imgPath in imagePaths) {
       final page = doc.pages.add();
-      final image = sf.PdfBitmap(await File(imgPath).readAsBytes());
+      final bytes = await File(imgPath).readAsBytes();
+      final image = sf.PdfBitmap(bytes);
       final pageSize = page.getClientSize();
 
       // fit the image inside the A4 page, preserving aspect ratio

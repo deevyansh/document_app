@@ -31,7 +31,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _pinEnabled = false;
   bool _autoBackupEnabled = true;
   bool _searchHistoryStatus = true;
-
   // Hidden admin entry point: tapping the "Profile" app bar title 3 times
   // within [_adminTapWindow] opens AdminStatsPage — but only for
   // [adminEmail]. Anyone else tapping it 3 times sees nothing happen, so

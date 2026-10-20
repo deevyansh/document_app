@@ -261,22 +261,10 @@ class _BrowserPageState extends State<BrowserPage> {
       ),
       title: Text("${_selectedIndexes.length} selected"),
       actions: [
-        FilledButton.icon(
-            icon: const Icon(Icons.merge_type),
-            label: const Text(
-                "Merge as PDF",
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 5,
-                ),
-              ),
-            onPressed: _handleMergeAsPdf,
+        IconButton(
+          icon: const Icon(Icons.merge_type),
+          tooltip: 'Merge as PDF',
+          onPressed: _handleMergeAsPdf,
         ),
         IconButton(
           icon: const Icon(Icons.share),
