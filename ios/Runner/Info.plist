@@ -59,8 +59,15 @@
 	<string>DocEzy uses the microphone to convert your voice into search text.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>DocEzy uses speech recognition to let you search for documents using your voice.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>DocEzy uses the photo library to import document you want</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>DocEzy needs permission to save documents or images to your photo library.</string>
+
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>DocEzy uses your location only when needed to support location-related features that you choose to use.</string>
+
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>DocEzy needs access to your photo library so you can select and import images of documents to store and search in the app.</string>
+
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
