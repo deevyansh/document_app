@@ -502,6 +502,9 @@ class MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    for (final focusNode in _otpFocusNodes) {
+      focusNode.addListener(_onOtpFocusChanged);
+    }
     _sliderTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!_sliderController.hasClients) return;
 
@@ -546,6 +549,10 @@ class MyHomePageState extends State<MyHomePage> {
         }
       };
     _initialize();
+  }
+
+  void _onOtpFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   void _setupWidgetChannel() {
@@ -1346,7 +1353,7 @@ class MyHomePageState extends State<MyHomePage> {
                                 ),
                                 const SizedBox(height: 6),
                                 const Text(
-                                  'Sign in to access your documents',
+                                  'Sign in to DocEzy',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 16,
@@ -1641,6 +1648,13 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildOtpScreen(BuildContext context) {
+    const background = Color(0xFFF4F7FF);
+    const primary = Color(0xFF1D4ED8);
+    const ink = Color(0xFF0B1B3A);
+    const muted = Color(0xFF3A4D73);
+    const border = Color(0xFFB7C8EE);
+    final textTheme = GoogleFonts.manropeTextTheme(Theme.of(context).textTheme);
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -1650,142 +1664,252 @@ class MyHomePageState extends State<MyHomePage> {
           _otpError = null;
         });
       },
-      child: Scaffold(
-        appBar: AppBar(title: const Text('DocEzy')),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.lock_outline, size: 80, color: Colors.blue),
-                const SizedBox(height: 24),
-                const Text(
-                  'Verify OTP',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+      child: Theme(
+        data: Theme.of(context).copyWith(textTheme: textTheme),
+        child: Scaffold(
+          backgroundColor: background,
+          body: Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              Positioned(
+                left: -80,
+                top: -150,
+                child: _otpBackdropCircle(380, const Color(0xFFE0E9FF)),
+              ),
+              Positioned(
+                right: -90,
+                top: 10,
+                child: _otpBackdropCircle(
+                  220,
+                  const Color(0xFFCFDDFF).withOpacity(.6),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Enter the code sent to ${_emailController.text}',
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-
-                // ── Timer / Resend section ───────────────────────────────
-                if (!_canResendOtp)
-                  Text(
-                    'Resend OTP in $_formattedOtpTime',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  )
-                else
-                  TextButton(
-                    onPressed: _resendOtp,
-                    child: const Text(
-                      'Resend OTP',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue,
+              ),
+              SafeArea(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            tooltip: 'Back',
+                            onPressed: () => setState(() {
+                              appstage = AppStage.enterEmail;
+                              _otpError = null;
+                            }),
+                            icon: const Icon(Icons.arrow_back_rounded, color: primary),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'DocEzy',
+                              textAlign: TextAlign.center,
+                              style: textTheme.titleMedium?.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: ink,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 48),
+                        ],
                       ),
                     ),
-                  ),
-
-                const SizedBox(height: 32),
-
-                // ── OTP boxes ────────────────────────────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(6, (index) {
-                    return SizedBox(
-                      width: 48,
-                      height: 56,
-                      child: Focus(
-                        onKeyEvent: (node, event) {
-                          if (event is KeyDownEvent &&
-                              event.logicalKey ==
-                                  LogicalKeyboardKey.backspace) {
-                            if (index > 0) {
-                              _otpFocusNodes[index - 1].requestFocus();
-                              _otpControllers[index - 1].clear();
-                            }
-                            _otpControllers[index].clear();
-                          }
-                          return KeyEventResult.ignored;
-                        },
-                        child: TextField(
-                          controller: _otpControllers[index],
-                          focusNode: _otpFocusNodes[index],
-                          keyboardType: TextInputType.number,
-                          textAlign: TextAlign.center,
-                          maxLength: 1,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 420),
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    color: primary,
+                                    borderRadius: BorderRadius.circular(26),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: primary.withOpacity(.35),
+                                        blurRadius: 30,
+                                        offset: const Offset(0, 14),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.lock_outline_rounded,
+                                    color: Colors.white,
+                                    size: 38,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  'Verify OTP',
+                                  style: textTheme.headlineSmall?.copyWith(
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -.6,
+                                    color: ink,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Enter the code sent to',
+                                  textAlign: TextAlign.center,
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    fontSize: 15,
+                                    height: 1.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: muted,
+                                  ),
+                                ),
+                                Text(
+                                  _emailController.text,
+                                  textAlign: TextAlign.center,
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    fontSize: 15,
+                                    height: 1.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: ink,
+                                  ),
+                                ),
+                                const SizedBox(height: 26),
+                                if (!_canResendOtp)
+                                  Container(
+                                    height: 36,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE3ECFF),
+                                      borderRadius: BorderRadius.circular(18),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.timer_outlined, size: 16, color: primary),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Resend OTP in $_formattedOtpTime',
+                                          style: textTheme.labelLarge?.copyWith(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                else
+                                  TextButton.icon(
+                                    onPressed: _resendOtp,
+                                    icon: const Icon(Icons.refresh_rounded),
+                                    label: const Text('Resend OTP'),
+                                  ),
+                                const SizedBox(height: 26),
+                                Row(
+                                  children: List.generate(6, (index) {
+                                    final focused = _otpFocusNodes[index].hasFocus;
+                                    return Expanded(
+                                      child: Padding(
+                                        padding: EdgeInsets.only(left: index == 0 ? 0 : 10),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 150),
+                                          height: 60,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: _otpError != null
+                                                  ? Colors.red
+                                                  : (focused ? primary : border),
+                                              width: focused ? 2 : 1.5,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: primary.withOpacity(focused ? .14 : .06),
+                                                blurRadius: focused ? 0 : 8,
+                                                spreadRadius: focused ? 5 : 0,
+                                                offset: focused ? Offset.zero : const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Focus(
+                                            onKeyEvent: (node, event) {
+                                              if (event is KeyDownEvent &&
+                                                  event.logicalKey == LogicalKeyboardKey.backspace) {
+                                                if (index > 0) {
+                                                  _otpFocusNodes[index - 1].requestFocus();
+                                                  _otpControllers[index - 1].clear();
+                                                }
+                                                _otpControllers[index].clear();
+                                              }
+                                              return KeyEventResult.ignored;
+                                            },
+                                            child: TextField(
+                                              controller: _otpControllers[index],
+                                              focusNode: _otpFocusNodes[index],
+                                              autofocus: index == 0,
+                                              keyboardType: TextInputType.number,
+                                              textAlign: TextAlign.center,
+                                              maxLength: 1,
+                                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                              style: textTheme.headlineSmall?.copyWith(
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.w800,
+                                                color: ink,
+                                              ),
+                                              cursorColor: primary,
+                                              decoration: const InputDecoration(
+                                                border: InputBorder.none,
+                                                counterText: '',
+                                                contentPadding: EdgeInsets.zero,
+                                              ),
+                                              onChanged: (value) {
+                                                if (_otpError != null) setState(() => _otpError = null);
+                                                if (value.length == 1) {
+                                                  if (index < 5) {
+                                                    _otpFocusNodes[index + 1].requestFocus();
+                                                  } else {
+                                                    _otpFocusNodes[index].unfocus();
+                                                    _otpsubmit();
+                                                  }
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                                if (_otpError != null) ...[
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _otpError!,
+                                    style: const TextStyle(color: Colors.red, fontSize: 14),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                          decoration: InputDecoration(
-                            counterText: '',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Colors.deepPurple,
-                                width: 2,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: _otpError != null
-                                    ? Colors.red
-                                    : Colors.grey.shade400,
-                              ),
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey[50],
-                          ),
-                          onChanged: (value) {
-                            if (_otpError != null) {
-                              setState(() => _otpError = null);
-                            }
-
-                            if (value.length == 1) {
-                              if (index < 5) {
-                                _otpFocusNodes[index + 1].requestFocus();
-                              } else {
-                                _otpFocusNodes[index].unfocus();
-                                _otpsubmit();
-                              }
-                            }
-                          },
                         ),
                       ),
-                    );
-                  }),
+                    ),
+                  ],
                 ),
-
-                // ── Error message ────────────────────────────────────────
-                if (_otpError != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _otpError!,
-                    style: const TextStyle(color: Colors.red, fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+
+  Widget _otpBackdropCircle(double size, Color color) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      );
 
   void _changeToQueryScreen({bool startListening = false}) async {
     await Navigator.push(
