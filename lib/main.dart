@@ -29,6 +29,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:in_app_update/in_app_update.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -65,7 +66,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await BackupService.initialize();
   await GoogleSignIn.instance.initialize(
-    serverClientId: '302452809509-lbkt373gqmjlvs71hb9hp4av0dtm4fn3.apps.googleusercontent.com',
+    serverClientId:
+        '302452809509-lbkt373gqmjlvs71hb9hp4av0dtm4fn3.apps.googleusercontent.com',
   );
   runApp(const MyApp());
 }
@@ -114,7 +116,7 @@ class MyHomePageState extends State<MyHomePage> {
   final PageController _sliderController = PageController();
   Timer? _sliderTimer;
   int _currentSlide = 0;
-  bool _readMarkerShow=false;
+  bool _readMarkerShow = false;
   final List<String> _sliderImages = [
     'assets/slides/slide1.png',
     'assets/slides/slide2.png',
@@ -127,7 +129,7 @@ class MyHomePageState extends State<MyHomePage> {
   bool _appAlreadyRunning = false;
   final List<TextEditingController> _otpControllers = List.generate(
     6,
-        (_) => TextEditingController(),
+    (_) => TextEditingController(),
   );
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
   String get _otpCode => _otpControllers.map((c) => c.text).join();
@@ -161,7 +163,7 @@ class MyHomePageState extends State<MyHomePage> {
 
   late final StoreService _storeService = StoreService(
     onError: _showError,
-    onLoad:  _load,
+    onLoad: _load,
   );
 
   void _showError(String message) {
@@ -233,14 +235,16 @@ class MyHomePageState extends State<MyHomePage> {
     }
   }
 
-
   Future<File?> _downloadProfileImage(String imageUrl) async {
     final response = await http.get(Uri.parse(imageUrl));
     if (response.statusCode != 200) {
       return null;
     }
     final dir = await getApplicationDocumentsDirectory();
-    final dest = p.join( dir.path, 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg', );
+    final dest = p.join(
+      dir.path,
+      'profile_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
     final file = File(dest);
     await file.writeAsBytes(response.bodyBytes);
     await _loadProfileImage();
@@ -250,7 +254,8 @@ class MyHomePageState extends State<MyHomePage> {
   Future<void> _googleSignIn() async {
     setState(() => _googleLoading = true);
     try {
-      final GoogleSignInAccount account = await GoogleSignIn.instance.authenticate();
+      final GoogleSignInAccount account = await GoogleSignIn.instance
+          .authenticate();
 
       final idToken = account.authentication.idToken;
       if (idToken == null) {
@@ -282,13 +287,11 @@ class MyHomePageState extends State<MyHomePage> {
           .where((f) => p.basename(f.path).startsWith('profile_'))
           .toList();
 
-      if(files.isEmpty && data["picture"] != null) {
+      if (files.isEmpty && data["picture"] != null) {
         await _downloadProfileImage(data["picture"]);
       }
 
       setState(() => appstage = AppStage.document);
-
-
     } on GoogleSignInException catch (e) {
       if (e.code != GoogleSignInExceptionCode.canceled) {
         _showError("Google sign-in failed: ${e.description ?? e.code}");
@@ -300,7 +303,6 @@ class MyHomePageState extends State<MyHomePage> {
       if (mounted) setState(() => _googleLoading = false);
     }
   }
-
 
   Future<void> _checkForUpdate() async {
     try {
@@ -327,15 +329,13 @@ class MyHomePageState extends State<MyHomePage> {
 
     if (files.isNotEmpty) {
       files.sort(
-            (a, b) => b.path.compareTo(a.path),
+        (a, b) => b.path.compareTo(a.path),
       ); // newest last-modified name
       setState(() {
         _profileimage = files.first;
       });
     }
   }
-
-
 
   Future<void> _load() async {
     final dir = await getApplicationDocumentsDirectory();
@@ -348,7 +348,8 @@ class MyHomePageState extends State<MyHomePage> {
       if (name.endsWith('.thumb.jpg')) return false;
 
       final stem = p.basenameWithoutExtension(f.path);
-      if (!numericName.hasMatch(stem)) return false; // guards the int.parse in sort()
+      if (!numericName.hasMatch(stem))
+        return false; // guards the int.parse in sort()
 
       if (name.endsWith('.pdf')) return true;
       if (name.endsWith('.json')) return true;
@@ -365,17 +366,17 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Future<http.Response?> _safePost(
-      String path,
-      Map<String, dynamic> body, {
-        Map<String, String>? extraHeaders,
-      }) async {
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? extraHeaders,
+  }) async {
     try {
       final res = await http
           .post(
-        Uri.parse('$baseUrl$path'),
-        headers: {'Content-Type': 'application/json', ...?extraHeaders},
-        body: jsonEncode(body),
-      )
+            Uri.parse('$baseUrl$path'),
+            headers: {'Content-Type': 'application/json', ...?extraHeaders},
+            body: jsonEncode(body),
+          )
           .timeout(const Duration(seconds: 30));
 
       if (res.statusCode >= 500) {
@@ -428,7 +429,7 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _emailsubmit() async {
-    if(_emailController.text.isEmpty || !_emailController.text.contains('@')){
+    if (_emailController.text.isEmpty || !_emailController.text.contains('@')) {
       _showError("Please enter a valid email address.");
       return;
     }
@@ -440,7 +441,7 @@ class MyHomePageState extends State<MyHomePage> {
     setState(() {
       _startOtpTimer();
       appstage = AppStage.enterOtp;
-      for (final c in _otpControllers){
+      for (final c in _otpControllers) {
         c.clear();
       }
       _otpFocusNodes[0].requestFocus();
@@ -501,30 +502,30 @@ class MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    _sliderTimer = Timer.periodic(
-      const Duration(seconds: 10),
-          (_) {
-        if (!_sliderController.hasClients) return;
+    _sliderTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!_sliderController.hasClients) return;
 
-        _currentSlide =
-            (_currentSlide + 1) % _sliderImages.length;
+      _currentSlide = (_currentSlide + 1) % _sliderImages.length;
 
-        _sliderController.animateToPage(
-          _currentSlide,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOut,
-        );
-      },
-    );
+      _sliderController.animateToPage(
+        _currentSlide,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
+    });
     _privacyPolicyRecognizer = TapGestureRecognizer()
       ..onTap = () async {
-        final uri = Uri.parse('https://sites.google.com/view/docezy-privacy-policy');
+        final uri = Uri.parse(
+          'https://sites.google.com/view/docezy-privacy-policy',
+        );
         try {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         } catch (_) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Could not open the privacy policy link.')),
+              const SnackBar(
+                content: Text('Could not open the privacy policy link.'),
+              ),
             );
           }
         }
@@ -537,16 +538,15 @@ class MyHomePageState extends State<MyHomePage> {
         } catch (_) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Could not open the privacy policy link.')),
+              const SnackBar(
+                content: Text('Could not open the privacy policy link.'),
+              ),
             );
           }
         }
       };
     _initialize();
-
   }
-
-
 
   void _setupWidgetChannel() {
     methodChannel.setMethodCallHandler((call) async {
@@ -558,14 +558,12 @@ class MyHomePageState extends State<MyHomePage> {
         } else if (action == "voice_search") {
           Navigator.of(context).popUntil((route) => route.isFirst);
           _changeToQueryScreen(startListening: true);
-        }
-        else if(action == "camera"){
+        } else if (action == "camera") {
           Navigator.of(context).popUntil((route) => route.isFirst);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _scanDocument();
           });
-        }
-        else if(action == "notes"){
+        } else if (action == "notes") {
           Navigator.of(context).popUntil((route) => route.isFirst);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _openNotes();
@@ -576,11 +574,9 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _openNotes() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const NotesPage(),
-      ),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const NotesPage()));
     await _load();
   }
 
@@ -653,7 +649,9 @@ class MyHomePageState extends State<MyHomePage> {
   Future<void> _initialize() async {
     _setupWidgetChannel();
     unawaited(_ensureTranslationModels());
-    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((value) async {
+    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((
+      value,
+    ) async {
       if (value.isNotEmpty) {
         if (!mounted) return;
         if (!_appAlreadyRunning) {
@@ -687,8 +685,8 @@ class MyHomePageState extends State<MyHomePage> {
     _appAlreadyRunning = true;
 
     // check for the notification
-    if(await storage.containsKey(key: "token")){
-      final token=await storage.read(key: "token");
+    if (await storage.containsKey(key: "token")) {
+      final token = await storage.read(key: "token");
       final result = await _safePost(
         "/check-notification",
         {},
@@ -787,8 +785,6 @@ class MyHomePageState extends State<MyHomePage> {
     await _storeService.importMultipleFiles(paths);
   }
 
-
-
   Future<void> _scanDocument() async {
     final mode = await _showScanModePicker();
     if (mode == null) return;
@@ -865,13 +861,13 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _scanModeTile(
-      BuildContext context, {
-        required IconData icon,
-        required String title,
-        required String subtitle,
-        required ScanMode mode,
-        required Color accent,
-      }) {
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required ScanMode mode,
+    required Color accent,
+  }) {
     return Material(
       color: Colors.white,
       elevation: 4,
@@ -962,8 +958,6 @@ class MyHomePageState extends State<MyHomePage> {
       _showError("Unable to scan document.");
     }
   }
-
-
 
   Future<void> _scanAndroid() async {
     final scanner = DocumentScanner(
@@ -1068,14 +1062,16 @@ class MyHomePageState extends State<MyHomePage> {
     if (images == null || images.isEmpty) return;
 
     final dir = await getApplicationDocumentsDirectory();
-    final dest = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}.pdf');
+    final dest = p.join(
+      dir.path,
+      '${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
     await buildPdfFromImages(images, dest);
     await _storeService.makePdfThumb(dest);
     await _load();
     final text = await _storeService.extractPdfText(dest);
     await _storeService.storeEmbedding(dest, text);
   }
-
 
   Future<void> _scanIdCard() async {
     if (!await _hasInternet()) {
@@ -1099,7 +1095,10 @@ class MyHomePageState extends State<MyHomePage> {
     }
 
     final dir = await getApplicationDocumentsDirectory();
-    final dest = p.join(dir.path, '${DateTime.now().millisecondsSinceEpoch}.pdf');
+    final dest = p.join(
+      dir.path,
+      '${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
     await buildIdCardPdf(frontPath, backPath, dest);
     await _storeService.makePdfThumb(dest);
     await _load();
@@ -1113,7 +1112,9 @@ class MyHomePageState extends State<MyHomePage> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text("Scan the back?"),
-        content: const Text("Add the back side of the card to the same document?"),
+        content: const Text(
+          "Add the back side of the card to the same document?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -1156,10 +1157,9 @@ class MyHomePageState extends State<MyHomePage> {
     return result ?? false;
   }
 
-
-  void _pinunlocked() async{
-    setState((){
-      appstage=AppStage.document;
+  void _pinunlocked() async {
+    setState(() {
+      appstage = AppStage.document;
     });
 
     // getLaunchAction only ever resolves on Android today (see the iOS
@@ -1182,14 +1182,12 @@ class MyHomePageState extends State<MyHomePage> {
     } else if (action == "voice_search") {
       Navigator.of(context).popUntil((route) => route.isFirst);
       _changeToQueryScreen(startListening: true);
-    }
-    else if(action == "camera"){
+    } else if (action == "camera") {
       Navigator.of(context).popUntil((route) => route.isFirst);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scanDocument();
       });
-    }
-    else if(action == "notes"){
+    } else if (action == "notes") {
       Navigator.of(context).popUntil((route) => route.isFirst);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _openNotes();
@@ -1257,189 +1255,383 @@ class MyHomePageState extends State<MyHomePage> {
       return _buildEmailScreen(context);
     } else if (appstage == AppStage.enterOtp) {
       return _buildOtpScreen(context);
-    }
-    else {
+    } else {
       return _buildDocument(context);
     }
   }
 
   Widget _buildEmailScreen(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
+    const navy = Color(0xFF0B1B3A);
+    const blue = Color(0xFF1D4ED8);
+    const ink = Color(0xFF3A4D73);
+    final textTheme = GoogleFonts.manropeTextTheme(Theme.of(context).textTheme);
+    return Theme(
+      data: Theme.of(context).copyWith(textTheme: textTheme),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F7FF),
+        body: Stack(
+          clipBehavior: Clip.hardEdge,
           children: [
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(18),
-                              child: Image.asset(
-                                'assets/logo.png',
-                                height: 80,
-                                width: 80,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            const Text(
-                              'Welcome to DocEzy!',
-                              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Sign in to access your documents',
-                              style: TextStyle(fontSize: 16, color: Colors.grey),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 40),
-                            TextField(
-                              controller: _emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              inputFormatters: [
-                                TextInputFormatter.withFunction((oldValue, newValue) {
-                                  return newValue.copyWith(text: newValue.text.toLowerCase());
-                                }),
-                              ],
-                              decoration: InputDecoration(
-                                labelText: 'Email Address',
-                                hintText: 'you@example.com',
-                                prefixIcon: const Icon(Icons.email_outlined),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey[50],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton(
-                                onPressed: _emailsubmit,
-                                style: ElevatedButton.styleFrom(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 2,
-                                ),
-                                child: const Text('Send OTP', style: TextStyle(fontSize: 18)),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Row(
+            Positioned(
+              top: -120,
+              left: -80,
+              child: Container(
+                width: 380,
+                height: 380,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFE0E9FF),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: -90,
+              child: Container(
+                width: 220,
+                height: 220,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFCFDDFF),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Expanded(child: Divider()),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  child: Text('or', style: TextStyle(color: Colors.grey[600])),
-                                ),
-                                const Expanded(child: Divider()),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: Material(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                elevation: 0,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTap: _googleLoading ? null : _googleSignIn,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.grey.shade300),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
+                                const SizedBox(height: 24),
+                                Container(
+                                  width: 96,
+                                  height: 96,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(28),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: blue.withOpacity(.35),
+                                        blurRadius: 30,
+                                        offset: const Offset(0, 14),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(28),
+                                    child: Image.asset(
+                                      'assets/logo.png',
+                                      fit: BoxFit.cover,
                                     ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        _googleLoading
-                                            ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                                        )
-                                            : Image.asset(
-                                          'assets/google_logo.png',
-                                          height: 20,
-                                          width: 20,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Welcome to DocEzy!',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.w800,
+                                    color: navy,
+                                    letterSpacing: -0.6,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Sign in to access your documents',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: ink,
+                                  ),
+                                ),
+                                const SizedBox(height: 36),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    22,
+                                    20,
+                                    22,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(28),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: blue.withOpacity(.12),
+                                        blurRadius: 34,
+                                        offset: const Offset(0, 14),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      const Padding(
+                                        padding: EdgeInsets.only(
+                                          left: 4,
+                                          bottom: 8,
                                         ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          _googleLoading ? 'Signing in...' : 'Continue with Google',
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.black87,
+                                        child: Text(
+                                          'Email Address',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: ink,
                                           ),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                      TextField(
+                                        controller: _emailController,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
+                                        autofillHints: const [
+                                          AutofillHints.email,
+                                        ],
+                                        inputFormatters: [
+                                          TextInputFormatter.withFunction(
+                                            (oldValue, newValue) =>
+                                                newValue.copyWith(
+                                                  text: newValue.text
+                                                      .toLowerCase(),
+                                                ),
+                                          ),
+                                        ],
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          color: ink,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText: 'you@example.com',
+                                          hintStyle: const TextStyle(
+                                            color: Color(0xFF4A5B7A),
+                                          ),
+                                          prefixIcon: const Icon(
+                                            Icons.email_outlined,
+                                            color: blue,
+                                            size: 24,
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                vertical: 18,
+                                                horizontal: 16,
+                                              ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            borderSide: const BorderSide(
+                                              color: Color(0xFFB8C9F5),
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            borderSide: const BorderSide(
+                                              color: blue,
+                                              width: 2,
+                                            ),
+                                          ),
+                                          filled: true,
+                                          fillColor: const Color(0xFFF8FAFF),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        height: 56,
+                                        child: ElevatedButton(
+                                          onPressed: _emailsubmit,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: blue,
+                                            foregroundColor: Colors.white,
+                                            elevation: 0,
+                                            shadowColor: blue.withOpacity(.3),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Send OTP',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Row(
+                                        children: [
+                                          const Expanded(
+                                            child: Divider(
+                                              color: Color(0xFFD5DFF5),
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                            ),
+                                            child: Text(
+                                              'or',
+                                              style: TextStyle(
+                                                color: ink,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                          const Expanded(
+                                            child: Divider(
+                                              color: Color(0xFFD5DFF5),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        height: 56,
+                                        child: Material(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(16),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            onTap: _googleLoading
+                                                ? null
+                                                : _googleSignIn,
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                border: Border.all(
+                                                  color: const Color(
+                                                    0xFFB8C9F5,
+                                                  ),
+                                                  width: 1.5,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  _googleLoading
+                                                      ? const SizedBox(
+                                                          width: 22,
+                                                          height: 22,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                strokeWidth:
+                                                                    2.5,
+                                                              ),
+                                                        )
+                                                      : Container(
+                                                          width: 26,
+                                                          height: 26,
+                                                          alignment:
+                                                              Alignment.center,
+                                                          decoration:
+                                                              const BoxDecoration(
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                                color: Color(
+                                                                  0xFFE8EFFF,
+                                                                ),
+                                                              ),
+                                                          child: const Text(
+                                                            'G',
+                                                            style: TextStyle(
+                                                              color: blue,
+                                                              fontSize: 15,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                  const SizedBox(width: 12),
+                                                  Text(
+                                                    _googleLoading
+                                                        ? 'Signing in...'
+                                                        : 'Continue with Google',
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: navy,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
+                                const SizedBox(height: 28),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-              child: RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                    height: 1.4,
                   ),
-                  children: [
-                    const TextSpan(text: 'By continuing, you agree to the '),
-                    TextSpan(
-                      text: 'DocEzy Privacy Policy',
-                      style: const TextStyle(
-                        color: Color(0xFF1565C0),
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.underline,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: ink,
+                          height: 1.4,
+                        ),
+                        children: [
+                          const TextSpan(
+                            text: 'By continuing, you agree to the ',
+                          ),
+                          TextSpan(
+                            text: 'DocEzy Privacy Policy',
+                            style: const TextStyle(
+                              color: blue,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            recognizer: _privacyPolicyRecognizer,
+                          ),
+                          const TextSpan(text: ', '),
+                          TextSpan(
+                            text: 'DocEzy Terms and Conditions',
+                            style: const TextStyle(
+                              color: blue,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            recognizer: _termsRecognizer,
+                          ),
+                          const TextSpan(text: '.'),
+                        ],
                       ),
-                      recognizer: _privacyPolicyRecognizer,
                     ),
-                    const TextSpan(text: ' , '),
-                    TextSpan(
-                      text: 'DocEzy Terms and Conditions',
-                      style: const TextStyle(
-                        color: Color(0xFF1565C0),
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.underline,
-                      ),
-                      recognizer: _termsRecognizer,
-                    ),
-                    const TextSpan(text: '.'),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1448,9 +1640,8 @@ class MyHomePageState extends State<MyHomePage> {
     );
   }
 
-
   Widget _buildOtpScreen(BuildContext context) {
-    return  PopScope(
+    return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
@@ -1516,7 +1707,8 @@ class MyHomePageState extends State<MyHomePage> {
                       child: Focus(
                         onKeyEvent: (node, event) {
                           if (event is KeyDownEvent &&
-                              event.logicalKey == LogicalKeyboardKey.backspace) {
+                              event.logicalKey ==
+                                  LogicalKeyboardKey.backspace) {
                             if (index > 0) {
                               _otpFocusNodes[index - 1].requestFocus();
                               _otpControllers[index - 1].clear();
@@ -1647,14 +1839,13 @@ class MyHomePageState extends State<MyHomePage> {
         content: Text(
           notBackedUp == 1
               ? "1 file isn't backed up yet and will be lost from this "
-                "device if you log out now."
+                    "device if you log out now."
               : "$notBackedUp files aren't backed up yet and will be lost "
-                "from this device if you log out now.",
+                    "from this device if you log out now.",
         ),
         actions: [
           TextButton(
-            onPressed: () =>
-                Navigator.pop(context, _LogoutChoice.logoutAnyway),
+            onPressed: () => Navigator.pop(context, _LogoutChoice.logoutAnyway),
             child: const Text("Log Out Anyway"),
           ),
           FilledButton(
@@ -1705,7 +1896,6 @@ class MyHomePageState extends State<MyHomePage> {
       await storage.delete(key: 'token');
       setState(() {
         appstage = AppStage.enterEmail;
-
       });
     } else {
       ScaffoldMessenger.of(
@@ -1757,8 +1947,6 @@ class MyHomePageState extends State<MyHomePage> {
       await BackupService.markDeleted(file);
     }
   }
-
-
 
   Widget _buildSearchBar() {
     return Padding(
@@ -1827,10 +2015,7 @@ class MyHomePageState extends State<MyHomePage> {
           padding: EdgeInsets.fromLTRB(12, 12, 12, 6),
           child: Text(
             'Recent',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ),
         const SizedBox(height: 5),
@@ -1871,9 +2056,7 @@ class MyHomePageState extends State<MyHomePage> {
                     child: isPdf
                         ? Builder(
                             builder: (context) {
-                              final thumbFile = File(
-                                '${file.path}.thumb.jpg',
-                              );
+                              final thumbFile = File('${file.path}.thumb.jpg');
 
                               return Image.file(
                                 thumbFile,
@@ -1902,100 +2085,93 @@ class MyHomePageState extends State<MyHomePage> {
                             },
                           )
                         : !isNote
-                            ? Image.file(
-                                file,
-                                fit: BoxFit.cover,
-                                cacheWidth: 200,
-                                errorBuilder: (_, __, ___) {
-                                  return Container(
-                                    color: Colors.grey.shade200,
-                                    alignment: Alignment.center,
-                                    child: const Icon(
-                                      Icons.insert_drive_file,
-                                      color: Colors.grey,
+                        ? Image.file(
+                            file,
+                            fit: BoxFit.cover,
+                            cacheWidth: 200,
+                            errorBuilder: (_, __, ___) {
+                              return Container(
+                                color: Colors.grey.shade200,
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.insert_drive_file,
+                                  color: Colors.grey,
+                                ),
+                              );
+                            },
+                          )
+                        : FutureBuilder<String>(
+                            future: file.readAsString(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState !=
+                                  ConnectionState.done) {
+                                return const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                );
+                              }
+
+                              if (snapshot.hasError || !snapshot.hasData) {
+                                return Container(
+                                  color: Colors.grey.shade100,
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.notes_outlined,
+                                    size: 36,
+                                    color: Colors.grey,
+                                  ),
+                                );
+                              }
+
+                              try {
+                                final json = jsonDecode(snapshot.data!);
+                                final preview = json["preview"] ?? "";
+
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                      width: 1,
                                     ),
-                                  );
-                                },
-                              )
-                            : FutureBuilder<String>(
-                                future: file.readAsString(),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState !=
-                                      ConnectionState.done) {
-                                    return const Center(
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    );
-                                  }
-
-                                  if (snapshot.hasError ||
-                                      !snapshot.hasData) {
-                                    return Container(
-                                      color: Colors.grey.shade100,
-                                      alignment: Alignment.center,
-                                      child: const Icon(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  padding: const EdgeInsets.all(8),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
                                         Icons.notes_outlined,
-                                        size: 36,
-                                        color: Colors.grey,
+                                        size: 22,
+                                        color: Colors.black54,
                                       ),
-                                    );
-                                  }
-
-                                  try {
-                                    final json =
-                                        jsonDecode(snapshot.data!);
-                                    final preview =
-                                        json["preview"] ?? "";
-
-                                    return Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        border: Border.all(
-                                          color: Colors.grey.shade300,
-                                          width: 1,
+                                      const SizedBox(height: 6),
+                                      Expanded(
+                                        child: Text(
+                                          preview.toString(),
+                                          maxLines: 6,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontSize: 11),
                                         ),
-                                        borderRadius:
-                                            BorderRadius.circular(10),
                                       ),
-                                      padding: const EdgeInsets.all(8),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Icon(
-                                            Icons.notes_outlined,
-                                            size: 22,
-                                            color: Colors.black54,
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Expanded(
-                                            child: Text(
-                                              preview.toString(),
-                                              maxLines: 6,
-                                              overflow:
-                                                  TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  } catch (_) {
-                                    return Container(
-                                      color: Colors.grey.shade100,
-                                      alignment: Alignment.center,
-                                      child: const Icon(
-                                        Icons.notes_outlined,
-                                        size: 36,
-                                        color: Colors.grey,
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
+                                    ],
+                                  ),
+                                );
+                              } catch (_) {
+                                return Container(
+                                  color: Colors.grey.shade100,
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.notes_outlined,
+                                    size: 36,
+                                    color: Colors.grey,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                   ),
                 );
               }),
@@ -2006,9 +2182,7 @@ class MyHomePageState extends State<MyHomePage> {
                   onTap: () async {
                     await Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const BrowserPage(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const BrowserPage()),
                     );
 
                     await _load();
@@ -2017,25 +2191,16 @@ class MyHomePageState extends State<MyHomePage> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-                      ),
+                      border: Border.all(color: Colors.grey.shade300),
                     ),
                     child: const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.more_horiz,
-                          size: 28,
-                          color: Colors.black87,
-                        ),
+                        Icon(Icons.more_horiz, size: 28, color: Colors.black87),
                         SizedBox(height: 4),
                         Text(
                           'Show more',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.black87,
-                          ),
+                          style: TextStyle(fontSize: 11, color: Colors.black87),
                         ),
                       ],
                     ),
@@ -2101,25 +2266,20 @@ class MyHomePageState extends State<MyHomePage> {
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _sliderImages.length,
-                (index) {
-                  final isActive = index == _currentSlide;
+              children: List.generate(_sliderImages.length, (index) {
+                final isActive = index == _currentSlide;
 
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: isActive ? 20 : 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? Colors.blue
-                          : Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  );
-                },
-              ),
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: isActive ? 20 : 5,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: isActive ? Colors.blue : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                );
+              }),
             ),
 
             const SizedBox(height: 8),
@@ -2131,22 +2291,20 @@ class MyHomePageState extends State<MyHomePage> {
 
   Widget _buildDocument(BuildContext context) {
     return Scaffold(
-      appBar:AppBar(
+      appBar: AppBar(
         leading: IconButton(
           icon: _profileimage == null
               ? const Icon(Icons.person)
               : CircleAvatar(
-            radius: 16,
-            backgroundImage: FileImage(_profileimage!),
-          ),
+                  radius: 16,
+                  backgroundImage: FileImage(_profileimage!),
+                ),
           tooltip: 'Your Profile',
           onPressed: () async {
             final email = await storage.read(key: "email") ?? "";
             final action = await Navigator.push<ProfilePageAction>(
               context,
-              MaterialPageRoute(
-                builder: (_) => ProfilePage(userEmail: email),
-              ),
+              MaterialPageRoute(builder: (_) => ProfilePage(userEmail: email)),
             );
 
             await _loadProfileImage();
@@ -2163,17 +2321,12 @@ class MyHomePageState extends State<MyHomePage> {
             clipBehavior: Clip.none,
             children: [
               IconButton(
-                icon: const Icon(
-                  Icons.notifications_none,
-                  size: 24,
-                ),
+                icon: const Icon(Icons.notifications_none, size: 24),
                 tooltip: "Announcements",
                 onPressed: () async {
                   await Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const NotificationPage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const NotificationPage()),
                   );
 
                   setState(() {
@@ -2305,9 +2458,6 @@ class MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
-
-
-
 }
 
 /// OTP entry dialog used by the forgot-PIN flow. Reuses the same
@@ -2317,10 +2467,10 @@ class MyHomePageState extends State<MyHomePage> {
 class _ForgotPinOtpDialog extends StatefulWidget {
   final String email;
   final Future<http.Response?> Function(
-      String path,
-      Map<String, dynamic> body, {
-      Map<String, String>? extraHeaders,
-      })
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? extraHeaders,
+  })
   safePost;
 
   const _ForgotPinOtpDialog({required this.email, required this.safePost});
@@ -2401,10 +2551,10 @@ class _ForgotPinOtpDialogState extends State<_ForgotPinOtpDialog> {
           onPressed: _verifying ? null : _verify,
           child: _verifying
               ? const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Verify'),
         ),
       ],
