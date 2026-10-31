@@ -6,40 +6,48 @@ import 'package:path_provider/path_provider.dart';
 import '../constants.dart';
 import 'package:http/http.dart' as http;
 import 'dart:math';
-import 'package:flutter/material.dart';
-import 'package:flutter_quill/flutter_quill.dart';
 import '../backup_service.dart';
 
 enum _ToolSection { text, color, formatting }
 
 class NotesPage extends StatefulWidget {
-  const NotesPage({super.key});
+  /// When supplied, the note is opened for editing and Save returns a new
+  /// temporary JSON file to the caller. The source note is never overwritten.
+  final File? editingFile;
+
+  const NotesPage({super.key, this.editingFile});
 
   @override
   State<NotesPage> createState() => _NotesPageState();
 }
 
 class _NotesPageState extends State<NotesPage> {
-  final QuillController _controller = QuillController.basic();
+  QuillController _controller = QuillController.basic();
   final FocusNode _editorFocusNode = FocusNode();
   final ScrollController _editorScrollController = ScrollController();
 
   _ToolSection? _expandedSection;
 
-  Future<void> _saveNote() async {
-    final dir = await getApplicationDocumentsDirectory();
-
-    final file = File(
-      "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.json",
-    );
-
+  Future<File?> _saveNote() async {
     final delta = _controller.document.toDelta().toJson();
     final plainText = _controller.document.toPlainText();
     final preview = plainText.substring(0, min(150, plainText.length));
-
-    final token = await storage.read(key: 'token');
-
     final json = jsonEncode({"preview": preview, "delta": delta});
+
+    if (widget.editingFile != null) {
+      final dir = await getTemporaryDirectory();
+      final file = File(
+        "${dir.path}/edited_note_${DateTime.now().microsecondsSinceEpoch}.json",
+      );
+      await file.writeAsString(json);
+      return file;
+    }
+
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File(
+      "${dir.path}/${DateTime.now().millisecondsSinceEpoch}.json",
+    );
+    final token = await storage.read(key: 'token');
     await file.writeAsString(json);
 
     await http.post(
@@ -51,11 +59,38 @@ class _NotesPageState extends State<NotesPage> {
       body: jsonEncode({"doc_path": dbPath(file.path), "text": plainText}),
     );
     await BackupService.registerPendingBackup(file.path);
+    return null;
+  }
+
+  Future<void> _loadEditingNote() async {
+    final file = widget.editingFile;
+    if (file == null) return;
+
+    try {
+      final data =
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      final delta = List<Map<String, dynamic>>.from(data['delta'] as List);
+      final document = Document.fromJson(delta);
+      final previousController = _controller;
+      _controller = QuillController(
+        document: document,
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+      previousController.dispose();
+      if (mounted) setState(() {});
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open this note: $error')),
+      );
+      Navigator.pop(context);
+    }
   }
 
   @override
   void initState() {
     super.initState();
+    _loadEditingNote();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _editorFocusNode.requestFocus();
@@ -83,18 +118,28 @@ class _NotesPageState extends State<NotesPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Notes"),
+        leading: widget.editingFile == null
+            ? null
+            : IconButton(
+                tooltip: 'Discard edits',
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+        title: Text(widget.editingFile == null ? "Notes" : "Edit note"),
         actions: [
           IconButton(
             icon: const Icon(Icons.check, size: 30),
             tooltip: "Save the Note",
             onPressed: () async {
-              await _saveNote();
-              if (mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text("Saved")));
+              final editedFile = await _saveNote();
+              if (!mounted) return;
+              if (editedFile != null) {
+                Navigator.pop(context, editedFile);
+                return;
               }
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text("Saved")));
             },
           ),
         ],
@@ -257,9 +302,7 @@ class _NotesPageState extends State<NotesPage> {
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.withOpacity(0.2)),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.2))),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,

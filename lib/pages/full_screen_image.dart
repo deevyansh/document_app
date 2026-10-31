@@ -11,6 +11,9 @@ import 'note_read_page.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import '../backup_service.dart';
 import 'package:path/path.dart' as p;
+import '../store_service.dart';
+import 'notes_page.dart';
+import 'image_edit_page.dart';
 
 class FullScreenImage extends StatefulWidget {
   final List<File> files;
@@ -26,10 +29,13 @@ class FullScreenImage extends StatefulWidget {
 }
 
 class _FullScreenImageState extends State<FullScreenImage> {
+  late final List<File> _files;
+  late final StoreService _storeService;
   Set<String> _favfiles = {};
   late int _currentindex;
   late final PageController _pageController;
   final FocusNode _labelFocusNode = FocusNode();
+  bool _isBottomBarVisible = true;
 
   // ── Dynamic Gesture Lock State ──────────────────────────────────────────────
   final Set<int> _activePointers = {};
@@ -53,14 +59,31 @@ class _FullScreenImageState extends State<FullScreenImage> {
 
     setState(() {
       _favfiles = {
-        for (final row in data["results"]) p.basename(row["doc_path"] as String),
+        for (final row in data["results"])
+          p.basename(row["doc_path"] as String),
       };
+    });
+  }
+
+  void _toggleBottomBar() {
+    setState(() {
+      _isBottomBarVisible = !_isBottomBarVisible;
     });
   }
 
   @override
   void initState() {
     super.initState();
+    _files = List<File>.of(widget.files);
+    _storeService = StoreService(
+      onError: (message) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(backgroundColor: Colors.red, content: Text(message)),
+        );
+      },
+      onLoad: () async {},
+    );
     _loadFavourites();
     _pageController = PageController(initialPage: widget.startIndex);
     _currentindex = widget.startIndex;
@@ -70,8 +93,8 @@ class _FullScreenImageState extends State<FullScreenImage> {
   void dispose() {
     _pageController.dispose();
     _labelFocusNode.dispose();
+    _storeService.dispose();
     super.dispose();
-
   }
 
   // ── Pointer Handlers to Lock/Unlock Swiping ────────────────────────────────
@@ -106,7 +129,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
   Future<void> _rev_favourites() async {
     final token = await storage.read(key: "token");
     if (token == null) return;
-    final file = widget.files[_currentindex];
+    final file = _files[_currentindex];
 
     final name = p.basename(file.path);
     if (_favfiles.contains(name)) {
@@ -128,7 +151,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
     final token = await storage.read(key: "token");
     if (token == null) return;
 
-    final file = widget.files[_currentindex];
+    final file = _files[_currentindex];
     await file.delete();
 
     if (context.mounted) {
@@ -143,6 +166,103 @@ class _FullScreenImageState extends State<FullScreenImage> {
       },
       body: jsonEncode({'doc_path': dbPath(file.path)}),
     );
+  }
+
+  Future<void> _editCurrentFile() async {
+    final source = _files[_currentindex];
+    final route = MaterialPageRoute<File?>(
+      builder: (_) {
+        if (source.path.toLowerCase().endsWith('.json')) {
+          return NotesPage(editingFile: source);
+        }
+        return ImageEditPage(file: source);
+      },
+    );
+
+    final temporaryEditedFile = await Navigator.push<File?>(context, route);
+    if (temporaryEditedFile == null || !mounted) return;
+
+    final type = source.path.toLowerCase().endsWith('.pdf')
+        ? 'PDF'
+        : source.path.toLowerCase().endsWith('.json')
+        ? 'note'
+        : 'image';
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Saving edited $type…'),
+          duration: const Duration(minutes: 1),
+        ),
+      );
+
+    File? savedFile;
+    try {
+      savedFile = await _storeService.importFromPath(temporaryEditedFile.path);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save edited document: $error')),
+        );
+      }
+    } finally {
+      try {
+        if (await temporaryEditedFile.exists()) {
+          await temporaryEditedFile.delete();
+        }
+      } catch (_) {}
+    }
+
+    final importedFile = savedFile;
+    if (!mounted) return;
+    if (importedFile == null) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Could not save the edited $type. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      return;
+    }
+
+    final newIndex = _currentindex + 1;
+    setState(() {
+      _files.insert(newIndex, importedFile);
+      _currentindex = newIndex;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _pageController.hasClients) {
+        _pageController.jumpToPage(newIndex);
+      }
+    });
+
+    messenger.hideCurrentSnackBar();
+    if (type == 'image') {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+          title: const Text('Image saved'),
+          content: const Text('A new edited image has been saved.'),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('New $type saved.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
@@ -167,6 +287,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
       await delete(context);
     }
   }
@@ -181,7 +302,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({'doc_path': dbPath(widget.files[_currentindex].path)}),
+      body: jsonEncode({'doc_path': dbPath(_files[_currentindex].path)}),
     );
 
     if (response.statusCode == 200) {
@@ -189,55 +310,67 @@ class _FullScreenImageState extends State<FullScreenImage> {
       _contextcontroller.text = data['results'] ?? '';
     }
 
+    if (!mounted) {
+      _contextcontroller.dispose();
+      return;
+    }
+
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context){
+      builder: (context) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (context.mounted) {
             _labelFocusNode.requestFocus();
           }
         });
         return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          "Label As",
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        content: SizedBox(
-          width: 420,
-          child: TextField(
-            controller: _contextcontroller,
-            focusNode: _labelFocusNode,
-            maxLines: 3,
-            minLines: 2,
-            maxLength: 150,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            "Label As",
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          content: SizedBox(
+            width: 420,
+            child: TextField(
+              controller: _contextcontroller,
+              focusNode: _labelFocusNode,
+              maxLines: 3,
+              minLines: 2,
+              maxLength: 150,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignLabelWithHint: true,
+                contentPadding: const EdgeInsets.all(16),
               ),
-              alignLabelWithHint: true,
-              contentPadding: const EdgeInsets.all(16),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.bookmark_add_outlined),
-            label: const Text("Save"),
-          ),
-        ],
-      );
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Cancel"),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context, true),
+              icon: const Icon(Icons.bookmark_add_outlined),
+              label: const Text("Save"),
+            ),
+          ],
+        );
       },
     );
 
+    if (!mounted) {
+      _contextcontroller.dispose();
+      return;
+    }
+
     if (saved == true) {
-      final response = await http.post(
+      await http.post(
         Uri.parse('$baseUrl/save-context'),
         headers: {
           'Content-Type': 'application/json',
@@ -245,10 +378,10 @@ class _FullScreenImageState extends State<FullScreenImage> {
         },
         body: jsonEncode({
           'context': _contextcontroller.text,
-          'doc_path': dbPath(widget.files[_currentindex].path),
+          'doc_path': dbPath(_files[_currentindex].path),
         }),
       );
-      await BackupService.markDeleted(widget.files[_currentindex].path);
+      await BackupService.markDeleted(_files[_currentindex].path);
     }
     _contextcontroller.dispose();
   }
@@ -271,41 +404,44 @@ class _FullScreenImageState extends State<FullScreenImage> {
               onPointerDown: _onPointerDown,
               onPointerUp: _onPointerUp,
               onPointerCancel: _onPointerCancel,
-              child: PhotoViewGallery.builder(
-                scrollPhysics:
-                    _scrollPhysics, // Dynamically locked on multi-touch
-                itemCount: widget.files.length,
-                pageController: _pageController,
-                onPageChanged: (i) => setState(() => _currentindex = i),
-                backgroundDecoration: const BoxDecoration(color: Colors.black),
-                builder: (context, i) {
-                  final file = widget.files[i];
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _toggleBottomBar,
+                child: PhotoViewGallery.builder(
+                  scrollPhysics: _scrollPhysics,
+                  itemCount: _files.length,
+                  pageController: _pageController,
+                  onPageChanged: (i) => setState(() => _currentindex = i),
+                  backgroundDecoration: const BoxDecoration(color: Colors.black),
+                  builder: (context, i) {
+                    final file = _files[i];
 
-                  if (file.path.endsWith('.pdf')) {
-                    return PhotoViewGalleryPageOptions.customChild(
-                      child: PdfPage(file: file),
-                      initialScale: PhotoViewComputedScale.contained,
+                    if (file.path.endsWith('.pdf')) {
+                      return PhotoViewGalleryPageOptions.customChild(
+                        child: PdfPage(file: file),
+                        initialScale: PhotoViewComputedScale.contained,
+                        minScale: PhotoViewComputedScale.contained,
+                        maxScale: PhotoViewComputedScale.covered * 3,
+                      );
+                    }
+
+                    if (file.path.endsWith('.json')) {
+                      return PhotoViewGalleryPageOptions.customChild(
+                        child: NoteReadPage(file: file),
+                        initialScale: PhotoViewComputedScale.contained,
+                        minScale: PhotoViewComputedScale.contained,
+                        maxScale: PhotoViewComputedScale.covered * 3,
+                      );
+                    }
+
+                    return PhotoViewGalleryPageOptions(
+                      imageProvider: FileImage(file),
                       minScale: PhotoViewComputedScale.contained,
-                      maxScale: PhotoViewComputedScale.covered * 3,
+                      maxScale: PhotoViewComputedScale.covered * 5,
+                      heroAttributes: PhotoViewHeroAttributes(tag: file.path),
                     );
-                  }
-
-                  if (file.path.endsWith('.json')) {
-                    return PhotoViewGalleryPageOptions.customChild(
-                      child: NoteReadPage(file: file),
-                      initialScale: PhotoViewComputedScale.contained,
-                      minScale: PhotoViewComputedScale.contained,
-                      maxScale: PhotoViewComputedScale.covered * 3,
-                    );
-                  }
-
-                  return PhotoViewGalleryPageOptions(
-                    imageProvider: FileImage(file),
-                    minScale: PhotoViewComputedScale.contained,
-                    maxScale: PhotoViewComputedScale.covered * 5,
-                    heroAttributes: PhotoViewHeroAttributes(tag: file.path),
-                  );
-                },
+                  },
+                ),
               ),
             ),
           ),
@@ -368,7 +504,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
                 Expanded(
                   child: InkWell(
                     onTap: () async {
-                      final file = widget.files[_currentindex];
+                      final file = _files[_currentindex];
 
                       if (file.path.endsWith('.json')) {
                         final data = jsonDecode(await file.readAsString());
@@ -426,7 +562,9 @@ class _FullScreenImageState extends State<FullScreenImage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          (_favfiles.contains(p.basename(widget.files[_currentindex].path)))
+                          (_favfiles.contains(
+                                p.basename(_files[_currentindex].path),
+                              ))
                               ? const Icon(
                                   Icons.favorite,
                                   size: 24,
@@ -461,7 +599,7 @@ class _FullScreenImageState extends State<FullScreenImage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.edit_outlined),
+                          Icon(Icons.label_outline),
                           const SizedBox(height: 2),
                           Text(
                             'Label',
@@ -476,6 +614,35 @@ class _FullScreenImageState extends State<FullScreenImage> {
                     ),
                   ),
                 ),
+                if (!_files[_currentindex].path.toLowerCase().endsWith('.pdf'))
+                  Expanded(
+                    child: InkWell(
+                      onTap: _editCurrentFile,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 24,
+                              color: Colors.black.withOpacity(0.72),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Edit',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.black.withOpacity(0.72),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

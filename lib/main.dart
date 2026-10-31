@@ -778,13 +778,12 @@ class MyHomePageState extends State<MyHomePage> {
       _showError("No internet Connection");
       return;
     }
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
+    final pickedFiles = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
     );
-    if (result == null) return;
-    final paths = result.files
+    if (pickedFiles.isEmpty) return;
+    final paths = pickedFiles
         .map((file) => file.path)
         .whereType<String>()
         .toList();

@@ -18,7 +18,17 @@ subprojects {
 subprojects {
     project.evaluationDependsOn(":app")
 }
-
+subprojects {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "androidx.cardview" &&
+                requested.name == "cardview") {
+                useVersion("1.0.0")
+                because("Use stable AndroidX CardView version")
+            }
+        }
+    }
+}
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

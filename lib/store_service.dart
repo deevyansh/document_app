@@ -12,6 +12,7 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:image/image.dart' as img;
+import 'package:flutter_quill/flutter_quill.dart';
 import 'constants.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/painting.dart';
@@ -21,9 +22,15 @@ Uint8List _binarizeForOcr(Uint8List bytes) {
   var image = img.decodeImage(bytes);
   if (image == null) return bytes;
 
-  image = img.bakeOrientation(image);      // respect EXIF rotation before anything else
-  image = img.grayscale(image);            // drop color, keep luminance
-  image = img.normalize(image, min: 0, max: 255); // stretch contrast before thresholding
+  image = img.bakeOrientation(
+    image,
+  ); // respect EXIF rotation before anything else
+  image = img.grayscale(image); // drop color, keep luminance
+  image = img.normalize(
+    image,
+    min: 0,
+    max: 255,
+  ); // stretch contrast before thresholding
 
   return Uint8List.fromList(img.encodePng(image));
 }
@@ -43,8 +50,12 @@ class StoreService {
   final void Function(String message) onError;
   final Future<void> Function() onLoad;
   StoreService({required this.onError, required this.onLoad});
-  final TextRecognizer _latinRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-  final TextRecognizer _devanagariRecognizer = TextRecognizer(script: TextRecognitionScript.devanagiri);
+  final TextRecognizer _latinRecognizer = TextRecognizer(
+    script: TextRecognitionScript.latin,
+  );
+  final TextRecognizer _devanagariRecognizer = TextRecognizer(
+    script: TextRecognitionScript.devanagiri,
+  );
 
   // Every imported document is named after the millisecond it was
   // imported at (see importFromPath/_prepareSingleImport below) — both
@@ -75,7 +86,7 @@ class StoreService {
   }
 
   @override
-  void dispose(){
+  void dispose() {
     _latinRecognizer.close();
     _devanagariRecognizer.close();
   }
@@ -83,9 +94,7 @@ class StoreService {
   Future<bool> containsQRCode(String imagePath) async {
     final inputImage = InputImage.fromFilePath(imagePath);
 
-    final barcodeScanner = BarcodeScanner(
-      formats: [BarcodeFormat.qrCode],
-    );
+    final barcodeScanner = BarcodeScanner(formats: [BarcodeFormat.qrCode]);
 
     try {
       final barcodes = await barcodeScanner.processImage(inputImage);
@@ -125,7 +134,8 @@ class StoreService {
     final processedBytes = await compute(_binarizeForOcr, bytes);
 
     final tempDir = await getTemporaryDirectory();
-    final outPath = '${tempDir.path}/ocr_${DateTime.now().microsecondsSinceEpoch}.png';
+    final outPath =
+        '${tempDir.path}/ocr_${DateTime.now().microsecondsSinceEpoch}.png';
     await File(outPath).writeAsBytes(processedBytes);
     return outPath;
   }
@@ -149,7 +159,6 @@ class StoreService {
       return "";
     }
   }
-
 
   String _mergeOcrResults(RecognizedText latin, RecognizedText devanagari) {
     int nonWhitespaceCount(RecognizedText r) =>
@@ -181,23 +190,25 @@ class StoreService {
     final latinResult = await _latinRecognizer.processImage(input);
     final devanagariResult = await _devanagariRecognizer.processImage(input);
 
-    unawaited(File(processedPath).delete().catchError((_) => File(processedPath)));
+    unawaited(
+      File(processedPath).delete().catchError((_) => File(processedPath)),
+    );
 
     return _mergeOcrResults(latinResult, devanagariResult);
   }
 
   Future<http.Response?> _safePost(
-      String path,
-      Map<String, dynamic> body, {
-        Map<String, String>? extraHeaders,
-      }) async {
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? extraHeaders,
+  }) async {
     try {
       final res = await http
           .post(
-        Uri.parse('$baseUrl$path'),
-        headers: {'Content-Type': 'application/json', ...?extraHeaders},
-        body: jsonEncode(body),
-      )
+            Uri.parse('$baseUrl$path'),
+            headers: {'Content-Type': 'application/json', ...?extraHeaders},
+            body: jsonEncode(body),
+          )
           .timeout(const Duration(seconds: 30));
 
       if (res.statusCode >= 500) {
@@ -217,7 +228,6 @@ class StoreService {
     }
   }
 
-
   Future<bool> storeEmbedding(String dest, String text) async {
     final token = await storage.read(key: 'token');
     if (token == null) return false;
@@ -226,7 +236,7 @@ class StoreService {
       {'doc_path': dbPath(dest), 'text': text},
       extraHeaders: {'Authorization': 'Bearer $token'},
     );
-    if (res == null) {
+    if (res == null || res.statusCode != 200) {
       return false;
     }
     await BackupService.registerPendingBackup(dest);
@@ -307,19 +317,22 @@ class StoreService {
     return 'unknown';
   }
 
-  Future<void> importFromPath(String filepath) async {
-    final ext = await detectExt(filepath);
+  Future<File?> importFromPath(String filepath) async {
+    final isNote = p.extension(filepath).toLowerCase() == '.json';
+    final ext = isNote ? 'json' : await detectExt(filepath);
     final isPdf = (ext == 'pdf');
     if (ext == "unknown") {
       onError("Import is not supported for this file");
-      return;
+      return null;
     }
     final dir = await getApplicationDocumentsDirectory();
-    final dest = p.join(
-      dir.path,
-      '${DateTime.now().millisecondsSinceEpoch}.$ext',
-    );
-    await File(filepath).copy(dest);
+    final dest = p.join(dir.path, '${_nextUniqueTimestamp()}.$ext');
+    try {
+      await File(filepath).copy(dest);
+    } catch (error) {
+      onError("Couldn't save the edited document: $error");
+      return null;
+    }
     if (isPdf) {
       try {
         await makePdfThumb(dest);
@@ -329,27 +342,46 @@ class StoreService {
     }
     onLoad();
 
-    if (!isPdf) {
+    if (isNote) {
+      try {
+        final json = jsonDecode(await File(dest).readAsString());
+        final document = Document.fromJson(
+          List<Map<String, dynamic>>.from(json['delta'] as List),
+        );
+        final text = document.toPlainText();
+        if (!await storeEmbedding(dest, text)) {
+          await File(dest).delete();
+          onLoad();
+          return null;
+        }
+      } catch (error) {
+        onError("Couldn't process the edited note: $error");
+        await File(dest).delete();
+        onLoad();
+        return null;
+      }
+    } else if (!isPdf) {
       String text = await extractText(dest);
-      if(await containsQRCode(dest)){
-        text+=" scanner scan qr code";
+      if (await containsQRCode(dest)) {
+        text += " scanner scan qr code";
       }
       if (!await storeEmbedding(dest, text)) {
         await File(dest).delete();
         onLoad();
-        return;
+        return null;
       }
     } else {
       String text = await extractPdfText(dest);
-      if(await containsQRCode(dest+".thumb.jpg")){
-        text+=" scanner scan qr code";
+      if (await containsQRCode(dest + ".thumb.jpg")) {
+        text += " scanner scan qr code";
       }
       if (!await storeEmbedding(dest, text)) {
         await File(dest).delete();
         onLoad();
-        return;
+        return null;
       }
     }
+    return File(dest);
   }
 
   // ── Parallel multi-file import ─────────────────────────────────────
@@ -393,7 +425,9 @@ class StoreService {
     try {
       final ext = await detectExt(filepath);
       if (ext == "unknown") {
-        onError("Import is not supported for this file: ${p.basename(filepath)}");
+        onError(
+          "Import is not supported for this file: ${p.basename(filepath)}",
+        );
         return null;
       }
       isPdf = (ext == 'pdf');
@@ -420,14 +454,15 @@ class StoreService {
     onLoad();
 
     try {
-      String text = isPdf ? await extractPdfText(dest) : await extractText(dest);
-      if(!isPdf){
+      String text = isPdf
+          ? await extractPdfText(dest)
+          : await extractText(dest);
+      if (!isPdf) {
         if (await containsQRCode(dest)) {
           text += " qr code scan scanner";
         }
-      }
-      else{
-        if (await containsQRCode(dest+".thumb.jpg")) {
+      } else {
+        if (await containsQRCode(dest + ".thumb.jpg")) {
           text += " qr code scan scanner";
         }
       }
@@ -470,7 +505,9 @@ class StoreService {
       }
     }
 
-    final workerCount = filepaths.length < maxConcurrent ? filepaths.length : maxConcurrent;
+    final workerCount = filepaths.length < maxConcurrent
+        ? filepaths.length
+        : maxConcurrent;
     await Future.wait(List.generate(workerCount, (_) => worker()));
     return results;
   }
@@ -495,7 +532,9 @@ class StoreService {
       "/send-documents-batch",
       {
         'documents': items
-            .map((item) => {'doc_path': dbPath(item.destPath), 'text': item.text})
+            .map(
+              (item) => {'doc_path': dbPath(item.destPath), 'text': item.text},
+            )
             .toList(),
       },
       extraHeaders: {'Authorization': 'Bearer $token'},
@@ -549,7 +588,9 @@ class StoreService {
 
     final succeededPaths = await _storeEmbeddingsBatch(ready);
 
-    final failed = ready.where((item) => !succeededPaths.contains(item.destPath));
+    final failed = ready.where(
+      (item) => !succeededPaths.contains(item.destPath),
+    );
     for (final item in failed) {
       try {
         await File(item.destPath).delete();

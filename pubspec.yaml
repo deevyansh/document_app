@@ -42,8 +42,8 @@ dependencies:
   path: ^1.9.1
   google_mlkit_text_recognition: ^0.16.0
   http: ^1.6.0
-  flutter_secure_storage: ^10.3.1
-  share_plus: ^12.0.2
+  flutter_secure_storage: ^11.2.0
+  share_plus: ^13.3.1
   receive_sharing_intent: ^1.8.1
   photo_view: ^0.15.0
   google_mlkit_document_scanner: ^0.5.0
@@ -53,7 +53,7 @@ dependencies:
   firebase_core:
   firebase_auth:
   connectivity_plus: ^6.0.0
-  file_picker: ^10.3.2
+  file_picker: ^12.3.0
   flutter_quill: ^11.4.2
   in_app_update: ^4.2.3 
   url_launcher: ^6.3.2
@@ -66,6 +66,11 @@ dependencies:
   cryptography: ^2.7.0
   google_mlkit_barcode_scanning: ^0.16.0
   scanner_document: ^1.1.1
+  dart_pdf_editor: ^4.1.0
+  extended_image: ^10.1.0
+  material_ui: ^1.2.0
+  pro_image_editor: ^14.22.0
+  flutter_pdf_annotations: ^1.3.0
 
 dev_dependencies:
   flutter_test:
