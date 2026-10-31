@@ -388,262 +388,306 @@ class _FullScreenImageState extends State<FullScreenImage> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Column(
+      body: Stack(
         children: [
-          Container(
-            height:
-                MediaQuery.of(context).padding.top +
-                12, // status bar + small padding
-            color: Colors.black,
-          ),
-          // ── Image / PDF area wrapped in pointer Listener ──────────────────
-          Expanded(
-            child: Listener(
-              onPointerDown: _onPointerDown,
-              onPointerUp: _onPointerUp,
-              onPointerCancel: _onPointerCancel,
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: _toggleBottomBar,
-                child: PhotoViewGallery.builder(
-                  scrollPhysics: _scrollPhysics,
-                  itemCount: _files.length,
-                  pageController: _pageController,
-                  onPageChanged: (i) => setState(() => _currentindex = i),
-                  backgroundDecoration: const BoxDecoration(color: Colors.black),
-                  builder: (context, i) {
-                    final file = _files[i];
-
-                    if (file.path.endsWith('.pdf')) {
-                      return PhotoViewGalleryPageOptions.customChild(
-                        child: PdfPage(file: file),
-                        initialScale: PhotoViewComputedScale.contained,
-                        minScale: PhotoViewComputedScale.contained,
-                        maxScale: PhotoViewComputedScale.covered * 3,
-                      );
-                    }
-
-                    if (file.path.endsWith('.json')) {
-                      return PhotoViewGalleryPageOptions.customChild(
-                        child: NoteReadPage(file: file),
-                        initialScale: PhotoViewComputedScale.contained,
-                        minScale: PhotoViewComputedScale.contained,
-                        maxScale: PhotoViewComputedScale.covered * 3,
-                      );
-                    }
-
-                    return PhotoViewGalleryPageOptions(
-                      imageProvider: FileImage(file),
-                      minScale: PhotoViewComputedScale.contained,
-                      maxScale: PhotoViewComputedScale.covered * 5,
-                      heroAttributes: PhotoViewHeroAttributes(tag: file.path),
-                    );
-                  },
+          // Fixed image viewer
+          Positioned.fill(
+            child: Column(
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).padding.top + 12,
                 ),
-              ),
-            ),
-          ),
+                Expanded(
+                  child: Listener(
+                    onPointerDown: _onPointerDown,
+                    onPointerUp: _onPointerUp,
+                    onPointerCancel: _onPointerCancel,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: _toggleBottomBar,
+                      child: PhotoViewGallery.builder(
+                        scrollPhysics: _scrollPhysics,
+                        itemCount: _files.length,
+                        pageController: _pageController,
+                        onPageChanged: (i) {
+                          setState(() => _currentindex = i);
+                        },
+                        backgroundDecoration:
+                            const BoxDecoration(color: Colors.black),
+                        builder: (context, i) {
+                          final file = _files[i];
 
-          // ── Compact white footer ──────────────────────────────────────
-          Container(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 8,
-              bottom: MediaQuery.of(context).padding.bottom + 8,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.72),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
+                          if (file.path.endsWith('.pdf')) {
+                            return PhotoViewGalleryPageOptions.customChild(
+                              child: PdfPage(file: file),
+                              initialScale:
+                                  PhotoViewComputedScale.contained,
+                              minScale:
+                                  PhotoViewComputedScale.contained,
+                              maxScale:
+                                  PhotoViewComputedScale.covered * 3,
+                            );
+                          }
+
+                          if (file.path.endsWith('.json')) {
+                            return PhotoViewGalleryPageOptions.customChild(
+                              child: NoteReadPage(file: file),
+                              initialScale:
+                                  PhotoViewComputedScale.contained,
+                              minScale:
+                                  PhotoViewComputedScale.contained,
+                              maxScale:
+                                  PhotoViewComputedScale.covered * 3,
+                            );
+                          }
+
+                          return PhotoViewGalleryPageOptions(
+                            imageProvider: FileImage(file),
+                            minScale:
+                                PhotoViewComputedScale.contained,
+                            maxScale:
+                                PhotoViewComputedScale.covered * 5,
+                            heroAttributes:
+                                PhotoViewHeroAttributes(tag: file.path),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // Delete
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _confirmDelete(context),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.delete_outline,
-                            size: 24,
-                            color: Colors.black.withOpacity(0.72),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Delete',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.black.withOpacity(0.72),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
+          ),
+
+          // Animated bottom action bar
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: IgnorePointer(
+              ignoring: !_isBottomBarVisible,
+              child: AnimatedSlide(
+                offset: _isBottomBarVisible
+                    ? Offset.zero
+                    : const Offset(0, 1),
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOutCubic,
+                child: AnimatedOpacity(
+                  opacity: _isBottomBarVisible ? 1 : 0,
+                  duration: const Duration(milliseconds: 250),
+                  child: Container(
+                    padding: EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: 8,
+                      bottom: bottomPadding + 8,
                     ),
-                  ),
-                ),
-
-                // Share
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      final file = _files[_currentindex];
-
-                      if (file.path.endsWith('.json')) {
-                        final data = jsonDecode(await file.readAsString());
-                        final delta = data["delta"];
-
-                        final document = Document.fromJson(
-                          List<Map<String, dynamic>>.from(delta),
-                        );
-
-                        await Share.share(
-                          document.toPlainText(),
-                          subject: "Shared via DocEzy",
-                        );
-                      } else {
-                        await Share.shareXFiles(
-                          [XFile(file.path)],
-                          subject: "Shared via DocEzy",
-                          text: caption,
-                        );
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.share_outlined,
-                            size: 24,
-                            color: Colors.black.withOpacity(0.72),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Share',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.black.withOpacity(0.72),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.72),
+                          blurRadius: 8,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-
-                // Favourites
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _rev_favourites(),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          (_favfiles.contains(
-                                p.basename(_files[_currentindex].path),
-                              ))
-                              ? const Icon(
-                                  Icons.favorite,
-                                  size: 24,
-                                  color: Colors.red,
-                                )
-                              : Icon(
-                                  Icons.favorite_border,
-                                  size: 24,
-                                  color: Colors.black.withOpacity(0.72),
-                                ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Favourites',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.black.withOpacity(0.72),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _contextwindow(context),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.label_outline),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Label',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.black.withOpacity(0.72),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                if (!_files[_currentindex].path.toLowerCase().endsWith('.pdf'))
-                  Expanded(
-                    child: InkWell(
-                      onTap: _editCurrentFile,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.edit_outlined,
-                              size: 24,
-                              color: Colors.black.withOpacity(0.72),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Edit',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.black.withOpacity(0.72),
-                                fontWeight: FontWeight.w500,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Delete
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _confirmDelete(context),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.delete_outline,
+                                    size: 24,
+                                    color: Colors.black.withOpacity(0.72),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Delete',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black.withOpacity(0.72),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+
+                        // Share
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final file = _files[_currentindex];
+
+                              if (file.path.endsWith('.json')) {
+                                final data =
+                                    jsonDecode(await file.readAsString());
+                                final delta = data["delta"];
+
+                                final document = Document.fromJson(
+                                  List<Map<String, dynamic>>.from(delta),
+                                );
+
+                                await Share.share(
+                                  document.toPlainText(),
+                                  subject: "Shared via DocEzy",
+                                );
+                              } else {
+                                await Share.shareXFiles(
+                                  [XFile(file.path)],
+                                  subject: "Shared via DocEzy",
+                                  text: caption,
+                                );
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.share_outlined,
+                                    size: 24,
+                                    color: Colors.black.withOpacity(0.72),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Share',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black.withOpacity(0.72),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Favourites
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _rev_favourites(),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _favfiles.contains(
+                                    p.basename(_files[_currentindex].path),
+                                  )
+                                      ? const Icon(
+                                          Icons.favorite,
+                                          size: 24,
+                                          color: Colors.red,
+                                        )
+                                      : Icon(
+                                          Icons.favorite_border,
+                                          size: 24,
+                                          color: Colors.black.withOpacity(0.72),
+                                        ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Favourites',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black.withOpacity(0.72),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Label
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _contextwindow(context),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.label_outline),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Label',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black.withOpacity(0.72),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Edit (not shown for PDFs)
+                        if (!_files[_currentindex]
+                            .path
+                            .toLowerCase()
+                            .endsWith('.pdf'))
+                          Expanded(
+                            child: InkWell(
+                              onTap: _editCurrentFile,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 6),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.edit_outlined,
+                                      size: 24,
+                                      color: Colors.black.withOpacity(0.72),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Edit',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black.withOpacity(0.72),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-              ],
+                ),
+              ),
             ),
           ),
         ],
