@@ -5,7 +5,16 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-const storage = FlutterSecureStorage(); // renamed from _storage (no underscore)
+const storage = FlutterSecureStorage(
+  aOptions: AndroidOptions(
+    encryptedSharedPreferences: true,
+  ),
+  iOptions: IOSOptions(
+    accessibility: KeychainAccessibility.first_unlock,
+    synchronizable: false, // very important
+  ),
+);
+
 const baseUrl = "https://container-service-1.tz0d7y44qkv7e.ap-south-1.cs.amazonlightsail.com";
 
 enum AppStage { enterEmail, enterOtp, document, QueryScreen}

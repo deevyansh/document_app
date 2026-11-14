@@ -25,6 +25,7 @@ class _ProfilePageState extends State<ProfilePage> {
   static const _websiteUrl = 'https://docezy.in';
   static const _playStoreUrl =
       'https://play.google.com/store/apps/details?id=com.deevyansh.docezy';
+  static const _appStoreUrl = 'https://apps.apple.com/in/app/docezy/id6823936368?action=write-review';
 
   final _picker = ImagePicker();
   File? _profileimage;
@@ -494,9 +495,12 @@ class _ProfilePageState extends State<ProfilePage> {
             color: Color(0xFFFFA000),
           ),
           title: 'Leave a Review',
-          subtitle: 'Rate DocEzy on the Play Store',
+          subtitle: Platform.isIOS ? 'Rate DocEzy on the App Store' : 'Rate DocEzy on the Play Store',
           trailingIcon: Icons.open_in_new_rounded,
-          onTap: () => _openUrl(_playStoreUrl),
+          onTap: () {
+            final url = Platform.isIOS ? _appStoreUrl : _playStoreUrl;
+            _openUrl(url);
+          },
         ),
         _SettingsTile(
           leading: const _YouTubeLogo(),
